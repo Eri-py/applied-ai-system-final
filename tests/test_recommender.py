@@ -55,6 +55,8 @@ def make_song(**overrides) -> dict:
         "popularity": 50,
         "release_decade": 2020,
         "mood_tags": [],
+        "language": "english",
+        "duration_sec": 210,
     }
     song.update(overrides)
     return song
@@ -177,6 +179,34 @@ def test_discovery_mode_rewards_unknown_songs():
     ]
     results = recommend_songs(POP_PREFS, catalog, k=2, mode="discovery", diversify=False)
     assert results[0][0]["title"] == "Obscure"
+
+
+def test_language_scores_only_on_an_exact_match():
+    catalog = [
+        make_song(id=1, title="In English", language="english"),
+        make_song(id=2, title="In Yoruba", language="yoruba"),
+        make_song(id=3, title="No Vocals", language="instrumental"),
+    ]
+    winner = recommend_songs({**POP_PREFS, "language": "yoruba"}, catalog, k=1, diversify=False)
+    assert winner[0][0]["title"] == "In Yoruba"
+    # "instrumental" is a language of its own, not a wildcard that matches everyone.
+    score, reasons = score_song({"language": "english"}, make_song(language="instrumental"))
+    assert score == 0.0
+
+
+def test_duration_term_dies_off_outside_the_tolerance():
+    prefs = {"duration_sec": 150}
+    assert score_song(prefs, make_song(duration_sec=150))[0] == 0.5
+    assert score_song(prefs, make_song(duration_sec=210))[0] == 0.25
+    assert score_song(prefs, make_song(duration_sec=400))[0] == 0.0
+
+
+def test_new_features_are_ignored_when_the_user_omits_them():
+    # Adding language/duration must not change the score of a profile that names neither.
+    quiet = dict(POP_PREFS)
+    assert score_song(quiet, make_song(language="yoruba", duration_sec=400))[0] == score_song(
+        quiet, make_song(language="english", duration_sec=150)
+    )[0]
 
 
 def test_acoustic_preference_flips_the_ranking():

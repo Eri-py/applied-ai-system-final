@@ -23,18 +23,21 @@ recommender, add new attribute columns beyond the starter's audio features, and 
   moods other than happy/chill/intense/relaxed/moody/focused. Keep energy, valence,
   danceability and acousticness on 0.0–1.0 and make them musically plausible for the genre
   (classical piano should not have acousticness 0.1)."
-- "Add three columns to every row, old and new: `popularity` 0–100, `release_decade`, and
-  `mood_tags` as semicolon-separated descriptive tags. Don't change the existing ten songs'
-  original values."
-- "Now update `load_songs` and `score_song` so the three new columns are read with the right
+- "Add five columns to every row, old and new: `popularity` 0–100, `release_decade`,
+  `mood_tags` as semicolon-separated descriptive tags, `language`, and `duration_sec`. Don't
+  change the existing ten songs' original values."
+- "Now update `load_songs` and `score_song` so the five new columns are read with the right
   types and can earn points. `mood_tags` should become a list, and tag matches should be worth
   less individually than a mood match but be able to add up."
 
 **What did the agent generate or change?**
 
-- `data/songs.csv`: 12 new rows (ids 11–22) and three new columns across all 22 rows.
-- `src/recommender.py`: `INT_COLUMNS` extended with `popularity` / `release_decade`, a
-  `_split_tags` helper, and three new scoring terms (shared tags, decade match, novelty bonus).
+- `data/songs.csv`: 12 new rows (ids 11–22) and five new columns across all 22 rows
+  (`popularity`, `release_decade`, `mood_tags`, `language`, `duration_sec`).
+- `src/recommender.py`: `INT_COLUMNS` extended with `popularity` / `release_decade` /
+  `duration_sec`, a `_split_tags` helper, and five new scoring terms (shared tags, decade
+  match, novelty bonus, language match, length closeness).
+- `src/main.py`: an `instrumental_study` profile that exercises `language` and `duration_sec`.
 
 **What did you verify or fix manually?**
 
@@ -50,6 +53,19 @@ recommender, add new attribute columns beyond the starter's audio features, and 
   new songs had been given the artist name of an existing one.
 - **Popularity scale.** The agent generated popularity values clustered in the 70s–90s, which
   would have made the `discovery` mode pointless. I spread them from 27 to 91.
+- **A real bug in the length term.** The generated code computed the closeness correctly and
+  then awarded `weights.duration` rather than `weights.duration * fit`, so every song received
+  the full +0.50 regardless of length — a 352-second track scored the same as a 150-second one
+  against a 150-second target. Nothing crashed and the suite was green; the only symptom was
+  the explanation line `length 352s vs target 150s (+0.50)`, which I noticed while reading the
+  table. Fixed, and covered by `test_duration_term_dies_off_outside_the_tolerance`.
+- **"Instrumental" as a wildcard.** The first language rule let `instrumental` match any
+  preference, on the theory that a song with no words suits everyone. That silently gave 8 of
+  22 songs a free +0.60 for every user, so I made it an ordinary value that only matches a user
+  who actually asked for it — there is a test for that too.
+- **Backwards compatibility.** I checked that adding the two terms left all six pre-existing
+  profiles' output byte-identical (they name neither preference, so the terms are skipped), and
+  wrote `test_new_features_are_ignored_when_the_user_omits_them` to keep it that way.
 
 ---
 

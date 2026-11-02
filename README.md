@@ -2,7 +2,8 @@
 
 **VibeFinder 1.0** is a content-based music recommender you can read end to end. It loads a
 22-song catalog from a CSV, compares every song against a written-down "taste profile"
-(genre, mood, vibe tags, energy, tempo, acoustic preference, decade), gives each song a
+(genre, mood, vibe tags, energy, tempo, acoustic preference, decade, language, length), gives
+each song a
 numeric score, and prints a ranked top-k list **with the reason for every point it awarded**.
 
 There is no machine learning here on purpose. Every number in the output can be traced back
@@ -13,10 +14,10 @@ recommender would quietly go wrong — filter bubbles, cold starts, popularity b
 
 | File | Role |
 |------|------|
-| `data/songs.csv` | The catalog: 22 songs, 13 columns. |
+| `data/songs.csv` | The catalog: 22 songs, 15 columns. |
 | `src/recommender.py` | All the logic: `load_songs`, `score_song`, `recommend_songs`, the `ScoringMode` registry, and the `Song` / `UserProfile` / `Recommender` object layer. |
 | `src/main.py` | CLI. Runs six taste profiles, five scoring modes, prints a table per profile. |
-| `tests/test_recommender.py` | 13 `pytest` tests over the scoring and ranking rules. |
+| `tests/test_recommender.py` | 16 `pytest` tests over the scoring and ranking rules. |
 | `model_card.md` | Intended use, data, biases, evaluation, reflection. |
 
 ---
@@ -50,9 +51,10 @@ hand. It has no users, so it has no behaviour to collaborate on.
 ### What my version prioritises
 
 A `Song` uses: `genre`, `mood`, `mood_tags`, `energy`, `tempo_bpm`, `acousticness`,
-`popularity`, `release_decade` (and carries `valence` / `danceability` in the data for future
-work). A `UserProfile` stores: `favorite_genre`, `favorite_mood`, `favorite_tags`,
-`target_energy`, `target_tempo`, `likes_acoustic`, `favorite_decade`, and the scoring `mode`.
+`popularity`, `release_decade`, `language`, `duration_sec` (and carries `valence` /
+`danceability` in the data for future work). A `UserProfile` stores: `favorite_genre`,
+`favorite_mood`, `favorite_tags`, `target_energy`, `target_tempo`, `likes_acoustic`,
+`favorite_decade`, `favorite_language`, `target_duration`, and the scoring `mode`.
 
 The order of importance is deliberate: **genre is the strongest single signal, energy is the
 strongest numeric one, and mood sits between them.** Genre is how people actually describe
@@ -73,6 +75,8 @@ wrong one.
 | Tempo closeness (only if the user gave a target) | **+1.00 × (1 − gap / 40 bpm)**, floored at 0 | Same idea in BPM. |
 | Acoustic fit | **+0.80 × acousticness** if they like acoustic, else **+0.80 × (1 − acousticness)** | Turns a yes/no preference into a slider. |
 | Decade match | **+0.50** | Small nudge, never decisive. |
+| Language match (only if the user named one) | **+0.60** | `instrumental` counts as its own language, not a wildcard. |
+| Length closeness (only if the user named a target) | **+0.50 × (1 − gap / 120s)**, floored at 0 | Same distance idea in seconds. |
 | Same artist already picked | **−1.50 each time** | Diversity penalty, applied during ranking. |
 | Same genre already picked | **−0.75 each time** | Diversity penalty, applied during ranking. |
 
@@ -146,7 +150,8 @@ python -m pytest                                     # the tests
 ```
 
 Modes: `balanced`, `genre_first`, `mood_first`, `energy_focused`, `discovery`.
-Profiles: `happy_pop`, `chill_lofi`, `intense_rock`, `sad_banger`, `empty`, `unknown_genre`.
+Profiles: `happy_pop`, `chill_lofi`, `intense_rock`, `instrumental_study`, `sad_banger`,
+`empty`, `unknown_genre`.
 
 ---
 
@@ -258,6 +263,46 @@ Mode: balanced | diversity penalty: on
 │     │                    │              │               │           │          │         │ vs target 155 bpm (+0.28); produced texture    │
 │     │                    │              │               │           │          │         │ (0.07 acousticness) (+0.74)                    │
 ╰─────┴────────────────────┴──────────────┴───────────────┴───────────┴──────────┴─────────┴────────────────────────────────────────────────╯
+```
+
+`python -m src.main --profile instrumental_study` — the profile that exercises the two newest
+features, `language` and `duration_sec`:
+
+```
+=== Instrumental Study — no words, keep it short (language + length demo) ===
+Profile: genre=lofi, mood=focused, energy=0.4, likes_acoustic=True, language=instrumental, duration_sec=150, mood_tags=['focused', 'minimal']
+Mode: balanced | diversity penalty: on
+
+╭─────┬─────────────────────┬────────────────┬─────────┬─────────┬──────────┬─────────┬────────────────────────────────────────────────╮
+│   # │ Title               │ Artist         │ Genre   │ Mood    │   Energy │   Score │ Why                                            │
+├─────┼─────────────────────┼────────────────┼─────────┼─────────┼──────────┼─────────┼────────────────────────────────────────────────┤
+│   1 │ Focus Flow          │ LoRoom         │ lofi    │ focused │     0.40 │    6.99 │ genre match: lofi (+2.00); mood match: focused │
+│     │                     │                │         │         │          │         │ (+1.00); shared vibe: focused, minimal         │
+│     │                     │                │         │         │          │         │ (+0.80); energy 0.40 vs target 0.40 (+1.50);   │
+│     │                     │                │         │         │          │         │ acoustic texture (0.78 acousticness) (+0.62);  │
+│     │                     │                │         │         │          │         │ no vocals (+0.60); length 142s vs target 150s  │
+│     │                     │                │         │         │          │         │ (+0.47)                                        │
+├─────┼─────────────────────┼────────────────┼─────────┼─────────┼──────────┼─────────┼────────────────────────────────────────────────┤
+│   2 │ Library Rain        │ Paper Lanterns │ lofi    │ chill   │     0.35 │    4.31 │ genre match: lofi (+2.00); energy 0.35 vs      │
+│     │                     │                │         │         │          │         │ target 0.40 (+1.35); acoustic texture (0.86    │
+│     │                     │                │         │         │          │         │ acousticness) (+0.69); no vocals (+0.60);      │
+│     │                     │                │         │         │          │         │ length 168s vs target 150s (+0.42); diversity  │
+│     │                     │                │         │         │          │         │ penalty (-0.75)                                │
+├─────┼─────────────────────┼────────────────┼─────────┼─────────┼──────────┼─────────┼────────────────────────────────────────────────┤
+│   3 │ Coffee Shop Stories │ Slow Stereo    │ jazz    │ relaxed │     0.37 │    2.73 │ energy 0.37 vs target 0.40 (+1.41); acoustic   │
+│     │                     │                │         │         │          │         │ texture (0.89 acousticness) (+0.71); no vocals │
+│     │                     │                │         │         │          │         │ (+0.60); length 268s vs target 150s (+0.01)    │
+├─────┼─────────────────────┼────────────────┼─────────┼─────────┼──────────┼─────────┼────────────────────────────────────────────────┤
+│   4 │ Midnight Coding     │ LoRoom         │ lofi    │ chill   │     0.42 │    2.49 │ genre match: lofi (+2.00); shared vibe:        │
+│     │                     │                │         │         │          │         │ focused (+0.40); energy 0.42 vs target 0.40    │
+│     │                     │                │         │         │          │         │ (+1.44); acoustic texture (0.71 acousticness)  │
+│     │                     │                │         │         │          │         │ (+0.57); no vocals (+0.60); length 154s vs     │
+│     │                     │                │         │         │          │         │ target 150s (+0.48); diversity penalty (-3.00) │
+├─────┼─────────────────────┼────────────────┼─────────┼─────────┼──────────┼─────────┼────────────────────────────────────────────────┤
+│   5 │ Spacewalk Thoughts  │ Orbit Bloom    │ ambient │ chill   │     0.28 │    2.48 │ energy 0.28 vs target 0.40 (+1.14); acoustic   │
+│     │                     │                │         │         │          │         │ texture (0.92 acousticness) (+0.74); no vocals │
+│     │                     │                │         │         │          │         │ (+0.60)                                        │
+╰─────┴─────────────────────┴────────────────┴─────────┴─────────┴──────────┴─────────┴────────────────────────────────────────────────╯
 ```
 
 The three adversarial profiles (`sad_banger`, `empty`, `unknown_genre`) are in

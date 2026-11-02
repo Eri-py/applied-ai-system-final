@@ -45,6 +45,16 @@ PROFILES = {
         "tempo_bpm": 155,
         "mood_tags": ["aggressive", "driving"],
     },
+    "instrumental_study": {
+        "label": "Instrumental Study — no words, keep it short (language + length demo)",
+        "genre": "lofi",
+        "mood": "focused",
+        "energy": 0.40,
+        "likes_acoustic": True,
+        "language": "instrumental",
+        "duration_sec": 150,
+        "mood_tags": ["focused", "minimal"],
+    },
     "sad_banger": {
         "label": "Adversarial — wants to cry at 180 bpm (sad mood, 0.9 energy)",
         "genre": "pop",
@@ -76,7 +86,7 @@ COLUMNS = ("#", "Title", "Artist", "Genre", "Mood", "Energy", "Score", "Why")
 def describe(profile: dict) -> str:
     """Builds the one-line 'genre=pop, mood=happy, ...' summary printed above a table."""
     parts = []
-    for key in ("genre", "mood", "energy", "tempo_bpm", "likes_acoustic", "mood_tags", "decade"):
+    for key in ("genre", "mood", "energy", "tempo_bpm", "likes_acoustic", "language", "duration_sec", "mood_tags", "decade"):
         value = profile.get(key)
         if value in (None, "", []):
             continue

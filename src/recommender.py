@@ -18,7 +18,7 @@ DEFAULT_CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "songs.csv"
 
 # Columns that must be read as numbers rather than strings.
 FLOAT_COLUMNS = ("energy", "valence", "danceability", "acousticness")
-INT_COLUMNS = ("id", "tempo_bpm", "popularity", "release_decade")
+INT_COLUMNS = ("id", "tempo_bpm", "popularity", "release_decade", "duration_sec")
 
 
 @dataclass
@@ -38,6 +38,8 @@ class Song:
     popularity: int = 50
     release_decade: int = 2020
     mood_tags: List[str] = field(default_factory=list)
+    language: str = "english"
+    duration_sec: int = 210
 
 
 @dataclass
@@ -51,6 +53,8 @@ class UserProfile:
     target_tempo: Optional[int] = None
     favorite_tags: List[str] = field(default_factory=list)
     favorite_decade: Optional[int] = None
+    favorite_language: Optional[str] = None
+    target_duration: Optional[int] = None
     mode: str = "balanced"
 
 
@@ -71,6 +75,9 @@ class ScoringMode:
     tempo: float = 1.0
     tempo_tolerance: float = 40.0
     decade: float = 0.5
+    language: float = 0.6
+    duration: float = 0.5
+    duration_tolerance: float = 120.0
     novelty: float = 0.0
     popularity: float = 0.0
 
@@ -224,6 +231,18 @@ def score_song(user_prefs: Dict, song: Dict, mode=None) -> Tuple[float, List[str
         if int(user_prefs["decade"]) == int(song["release_decade"]):
             award(weights.decade, f"from the {int(song['release_decade'])}s")
 
+    # --- Language and length: two more optional preferences, only scored when the user
+    # names one. "instrumental" is treated as its own language, not as a wildcard.
+    if user_prefs.get("language") and song.get("language"):
+        wanted_language = str(user_prefs["language"]).strip().lower()
+        if wanted_language == str(song["language"]).strip().lower():
+            label = "no vocals" if wanted_language == "instrumental" else f"sung in {wanted_language}"
+            award(weights.language, label)
+
+    if user_prefs.get("duration_sec") is not None and song.get("duration_sec") is not None:
+        fit = _closeness(song["duration_sec"], user_prefs["duration_sec"], weights.duration_tolerance)
+        award(weights.duration * fit, f"length {int(song['duration_sec'])}s vs target {int(user_prefs['duration_sec'])}s")
+
     if weights.novelty and song.get("popularity") is not None:
         award(weights.novelty * (1.0 - song["popularity"] / 100.0), f"under the radar (popularity {int(song['popularity'])})")
     elif weights.popularity and song.get("popularity") is not None:
@@ -290,6 +309,8 @@ def profile_to_prefs(user: "UserProfile") -> Dict:
         "tempo_bpm": user.target_tempo,
         "mood_tags": user.favorite_tags,
         "decade": user.favorite_decade,
+        "language": user.favorite_language,
+        "duration_sec": user.target_duration,
         "mode": user.mode,
     }
 

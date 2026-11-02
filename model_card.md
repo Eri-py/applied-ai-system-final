@@ -53,18 +53,21 @@ the CLI can switch between, and the artist/genre diversity penalty.
 
 ## 4. Data
 
-`data/songs.csv` — 22 fictional songs, 13 columns.
+`data/songs.csv` — 22 fictional songs, 15 columns.
 
 - **Original columns:** `id`, `title`, `artist`, `genre`, `mood`, `energy`, `tempo_bpm`,
   `valence`, `danceability`, `acousticness`.
-- **Columns I added:** `popularity` (0–100), `release_decade`, `mood_tags` (semicolon-separated
-  descriptive tags such as `nostalgic;sleepy;focused`).
+- **Columns I added (5):** `popularity` (0–100), `release_decade`, `mood_tags`
+  (semicolon-separated descriptive tags such as `nostalgic;sleepy;focused`), `language`
+  (`english` / `instrumental` / `spanish` / `yoruba`) and `duration_sec`. All five are scored,
+  not just stored.
 - **Rows I added:** 12, taking the catalog from 10 to 22, specifically to add genres and moods
   the starter had none of — afrobeats, hip hop, classical, metal, country, reggaeton, r&b,
   folk, drum and bass, gospel, bedroom pop, house, and the moods `melancholy`, `romantic` and
   `energetic`.
 - **Genres:** 19 distinct labels across 22 songs. **Moods:** 9. **Decades:** 1990s–2020s,
-  heavily skewed to 2020 (10 of 22).
+  heavily skewed to 2020 (10 of 22). **Languages:** 12 English, 8 instrumental, 1 Spanish,
+  1 Yoruba. **Lengths:** 142–402 seconds.
 
 **What is missing from this dataset as a picture of musical taste:** almost everything. One
 song per genre for most genres, so genre-level conclusions are really song-level conclusions.
@@ -136,13 +139,20 @@ Other limitations, in rough order of how much they distort the output:
   the `popularity` weight exists and in `balanced` mode is set to 0 — so the default is
   popularity-blind, which is itself a choice: the obscure classical piece and the hit are
   treated as equals, which no real platform would do.
+- **The language term serves English speakers and nobody else.** 20 of the 22 songs are either
+  English or instrumental, so those two preferences find plenty; a user who sets
+  `language="spanish"` can earn that +0.60 from exactly one song in the catalog and
+  `language="yoruba"` likewise. The scoring code treats all languages identically — the
+  unfairness is entirely in the data, which is precisely how it happens in real catalogs, and
+  it is invisible unless you count the rows.
 - **Filter bubble by construction.** The profile never updates. Whatever genre the user typed
   on day one is the genre that wins +2.00 forever. There is no exploration term, no decay, no
   randomness — if this ran in production, the only songs a user would ever see outside their
   genre are the ones the diversity penalty lets through.
-- **Features it ignores entirely:** lyrics, language, vocals, `valence` and `danceability` (in
-  the data but unscored), song length, release year, artist similarity, and anything the user
-  has actually listened to.
+- **Features it ignores entirely:** lyrics, vocals, `valence` and `danceability` (in the data
+  but unscored), release year, artist similarity, and anything the user has actually listened
+  to. Language and length are scored, but only as an exact string match and a distance — the
+  system has no idea that Spanish and Portuguese are closer to each other than to Yoruba.
 
 ---
 
@@ -157,6 +167,7 @@ Other limitations, in rough order of how much they distort the output:
 | `intense_rock` | High energy plus a tempo target, to see tempo do any work at all. |
 | `sad_banger` | **Adversarial:** internally contradictory (melancholy + acoustic + 0.9 energy @ 170bpm). |
 | `empty` | **Adversarial:** cold start, no preferences whatsoever. |
+| `instrumental_study` | The two newest features: `language` and `duration_sec`. |
 | `unknown_genre` | **Adversarial:** a genre (`polka`) that does not exist in the catalog. |
 
 ### What I looked for
@@ -279,6 +290,16 @@ Mode: balanced | diversity penalty: on
   across profiles* — a 2.33 here means "the best of a bad situation", and nothing in the output
   says so. A production system would need a confidence floor below which it says "we don't
   know you well enough yet" instead of ranking anyway.
+- **`chill_lofi` vs `instrumental_study`** — nearly the same request (lofi, low energy,
+  acoustic) with two extra constraints: no vocals, and keep it under about three minutes. The
+  lists overlap but reorder: `Library Rain` drops from 1st to 2nd and `Focus Flow` takes the
+  top spot, because it is the only song that is lofi *and* `focused` *and* instrumental *and*
+  142 seconds long. `Dust Road Home` — English, and the only song in the lofi profile's top 5
+  with vocals — is the one result that falls out entirely. The honest
+  caveat is visible in the explanations: the length term contributes +0.47 to the winner but
+  only +0.01 to `Coffee Shop Stories` at 268 seconds, so beyond two minutes off-target it is
+  effectively off, and the two new terms are worth at most 1.10 of a ~7.00 total. They refine;
+  they never overrule genre.
 - **`empty` vs everything else** — all zeros, alphabetical order. The only profile whose output
   is meaningless, and the only one whose output *looks* exactly as authoritative as the others.
 
@@ -331,7 +352,13 @@ the collaborative-vs-content distinction properly, generating 12 plausible catal
 genres I don't listen to, and suggesting the Strategy-pattern idea that became the
 `ScoringMode` registry. It was also confidently wrong in ways I had to catch. It proposed
 scoring energy as a plain sum (the bug above) and, separately, as `1 - abs(gap)` with no
-tolerance, which makes the term so flat it never changes a ranking. It wanted to drop the
+tolerance, which makes the term so flat it never changes a ranking. The clearest catch was in
+the length term: the generated code computed the closeness `fit` correctly and then awarded
+`weights.duration` instead of `weights.duration * fit`, so **every** song got the full +0.50
+no matter how long it was. The code ran, the tests I had at the time passed, and the printed
+explanation read `length 352s vs target 150s (+0.50)` — a line that is self-evidently wrong
+only if you actually read the output. I found it by reading the output. There is now a test
+(`test_duration_term_dies_off_outside_the_tolerance`) that pins all three cases. It wanted to drop the
 diversity penalty into `score_song`, where it cannot work — a single song has no idea what else
 is in the list, so that logic has to live in the ranking step. And its first pass at the "bias"
 section listed generic textbook harms rather than the two biases actually present in my file
