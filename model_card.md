@@ -25,8 +25,8 @@ everything below:
 | Narrator | Claude, or text assembled from recorded reasons | no |
 
 Only two steps involve a language model. Everything that decides *which songs you get* is
-arithmetic I can read, which is why the system can claim byte-identical reproducibility and
-why its failures are attributable.
+arithmetic I can read, which is why the same request returns a byte-identical playlist every
+time, and why a bad answer can be traced to the component that caused it.
 
 ## 2. Intended use
 
@@ -48,22 +48,23 @@ pretend to.
 ## 3. Data
 
 **Song catalog** (`data/songs.csv`) — 22 fictional songs across 19 genres, 15 columns, written
-by hand for Module 3. Fictional on purpose: no real artist's work is being characterised, and
-the audio-feature values are stated rather than inferred, so there is no hidden model.
+by hand for Module 3. Fictional on purpose: the card does not characterise any real artist's
+work, and I set the audio-feature values by hand rather than inferring them, so no hidden
+model sits underneath the numbers.
 
 **Listening-note corpus** (`data/notes/*.md`) — 14 notes, roughly 3,150 words, new in 2.0.
 Eight describe listening contexts (workout, focus, sleep, party, commute, rainy day,
 heartbreak, morning), three describe genre families, three cover ordering, diversity and cold
 starts. Each carries prose plus a `hints:` block of structured defaults.
 
-**The notes are the system's most consequential and least audited input**, and that deserves
-stating plainly. They are my own synthesis, written in my own voice, summarising claims about
-music psychology — tempo entrainment near resting heart rate, the irrelevant speech effect,
-sad listeners preferring sad music — that I believe are broadly supported but have not
-systematically sourced, and that are stated far more crisply in the notes than the underlying
-literature would justify. The ablation shows these notes drive a 45-point swing in the system's
-measured pass rate. **An unsourced corpus is doing most of the work**, which is the single
-biggest epistemic weakness in the project.
+**The notes are the system's most consequential and least audited input.** They are my own
+synthesis, written in my own voice, summarising claims about music psychology — tempo
+entrainment near resting heart rate, the irrelevant speech effect, sad listeners preferring
+sad music — that I believe are broadly supported but have not systematically sourced, and that
+I have stated far more crisply in the notes than the underlying literature would justify. The
+ablation shows these notes drive a 45-point swing in the system's measured pass rate. **An
+unsourced corpus is doing most of the work**, and of everything in this project that is the
+claim I am least able to back up.
 
 ## 4. How it decides
 
@@ -93,10 +94,11 @@ Full diagrams: [`diagrams/architecture.mmd`](diagrams/architecture.mmd) and
 - **Mood conflict is unrewarded but never penalised.** This is the big one, and it is the exact
   failure that **Module 3's own model card predicted in its Future Work section** and I did not
   fix: a song matching no mood and no tag can still rank highly by accumulating energy, tempo
-  and texture points. Human review found it live — a communal, uplifting gospel track ranks
-  fourth in a playlist asked to be nocturnal and cinematic ([`docs/human_eval.md`](docs/human_eval.md),
-  case 5). It passes every automated check. Fixing it means changing the Module 3 scoring
-  weights, which deserves its own measurement rather than a patch to make one case pass.
+  and texture points. Human review found it live: in a playlist asked to be nocturnal and
+  cinematic, a communal gospel track ranks fourth and a sunny afrobeats track fifth
+  ([`docs/human_eval.md`](docs/human_eval.md), case 5). Both pass every automated check.
+  Fixing it means changing the Module 3 scoring weights, which deserves its own measurement
+  rather than a patch to make one case pass.
 
 ### New in 2.0
 
@@ -135,7 +137,7 @@ Full report: [EVALUATION.md](EVALUATION.md). Human judgement:
 | Retrieval ablation | 100% → **55%** pass rate; confidence 0.65 → 0.21; 13 cases break |
 | Confidence: thin vs specified requests | 0.35 vs 0.69 |
 | Confidence: failing vs passing runs | gap of 0.05 — weak |
-| Human review of 12 playlists | 8 clean, 3 weak, 1 failure |
+| Human review of 12 playlists | 8 pass, 3 weak, 1 fail |
 
 **Read the 29/29 sceptically.** The cases were written alongside the fixes they describe: I
 found seven real defects by running the system and reading its output, and added the case that
@@ -143,12 +145,11 @@ would have caught each one as I fixed it. That makes the suite a regression guar
 quality measure. The ablation and the human review are the parts that tested the system against
 something it was not tuned for, and both found real problems.
 
-**The live Claude path is not verified end to end.** Its request shape is pinned by tests with
-a fake client — model id, closed schema, grounding content reaching the model, refusal
-handling, beta-rejection retry — but no test here has called the real API, because the machine
-this was built on had no key. Every published number comes from the deterministic planner. This
-is stated rather than glossed because "we use Claude" implying "and we tested that" is exactly
-the kind of claim this card exists to prevent.
+**The live Claude path is not verified end to end.** Tests with a fake client pin its request
+shape — model id, closed schema, grounding content reaching the model, refusal handling,
+beta-rejection retry — but no test here has called the real API, because the machine I built
+this on had no key. Every published number comes from the deterministic planner. "We use
+Claude" would otherwise be read as "and we tested that", and those are different claims.
 
 ## 7. Responsible-AI reflection
 
@@ -161,8 +162,8 @@ generating the test suite — 285 tests is more than I would have written by han
 coverage of the repair branches is better for it.
 
 It was most useful as a **harness for my own judgement** in one specific way: it ran the system
-after each change and showed me the output. Every defect found in this project was found that
-way, not by reading code. The code was individually correct each time.
+after each change and showed me the output. I found every defect in this project that way,
+reading output rather than code, because each component was individually correct when I read it.
 
 Where I had to push back was on **what the system should do when it doesn't know**. The
 defaults AI produces are confident defaults. Left alone, the system returned five songs and a
@@ -203,14 +204,14 @@ assessment. [`docs/human_eval.md`](docs/human_eval.md) scores all twelve against
 rubric and attributes every verdict to "Reviewer A", with the conflict of interest stated at the
 top and a filled-in protocol and empty table for an independent second rater.
 
-There is also a harder limit worth naming: **the 22 songs are fictional, so there is no audio
-and nobody can evaluate these playlists by listening to them.** What the review does is read
+A harder limit sits underneath all of that: **the 22 songs are fictional, so there is no
+audio, and nobody can evaluate these playlists by listening to them.** What the review does is read
 each playlist's metadata against the request and judge whether the selection is defensible.
 That is a weaker instrument than listening, and it still caught two things the 285 unit tests
 and 29 labelled cases all missed — including the one case where every automated check passes
 and two of five tracks are plainly the wrong feeling.
 
-### Limitations, stated plainly
+### Limitations
 
 1. 22 fictional songs, and no audio — several constraints are unsatisfiable in principle, and
    no playlist this system produces can be assessed by listening to it.
