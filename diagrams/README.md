@@ -27,7 +27,7 @@ Source: [`architecture.mmd`](architecture.mmd)
 
 ```mermaid
 flowchart TB
-    user([Listener's plain-English request]):::human
+    user(["Listener's plain-English request"]):::human
 
     subgraph sources[Knowledge sources on disk]
         direction LR
@@ -81,7 +81,7 @@ flowchart TB
     end
 
     log[("logs/run-*.jsonl<br/>every event, timed<br/>src/obs.py")]:::data
-    answer([Explained playlist<br/>+ published confidence]):::human
+    answer(["Explained playlist<br/>+ published confidence"]):::human
 
     subgraph verify[Verification - where results get checked]
         direction LR
