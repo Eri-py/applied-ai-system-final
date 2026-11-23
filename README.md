@@ -30,6 +30,15 @@ says that people in distress reliably choose sad music and that substituting che
 makes the output worse while appearing kind. The system reads that note, derives a low-energy
 acoustic profile from it, and never offers a metal track.
 
+<!-- DEMO VIDEO -->
+<!-- Recorded a walkthrough? Replace the italic paragraph below with a bold markdown link:
+     Watch the 5-minute walkthrough -> your video URL.
+     Script, preflight checklist and a one-command runner: docs/demo_script.md -->
+
+*A narrated walkthrough is not required — the brief asks for pasted, reproducible examples
+instead, and [three of those are below](#sample-interactions). If you would rather watch one,
+the script and a one-command runner are in [`docs/demo_script.md`](docs/demo_script.md).*
+
 ---
 
 ## The project this extends
@@ -193,6 +202,8 @@ python -m evaluation.run_eval --write    # regenerate EVALUATION.md
 python -m src.main                       # the original Module 3 demo, unchanged
 bash assets/regenerate.sh                # regenerate the committed command output
 python diagrams/build_readme.py          # regenerate the rendered diagram page
+python scripts/demo.py                   # drive the walkthrough (see docs/demo_script.md)
+python scripts/demo.py --list            #   running order and timings
 ```
 
 Exit codes: `0` playlist produced and passed its checks, `1` constraints left unsatisfied,
@@ -536,8 +547,11 @@ applied-ai-system-final/
 ├── docs/
 │   ├── human_eval.md          human evaluation: 12 scored playlists + findings
 │   ├── rubric_coverage.md     requirement-by-requirement coverage map
-│   ├── portfolio.md           portfolio copy and a demo script
+│   ├── demo_script.md         narrated walkthrough script + preflight
+│   ├── portfolio.md           portfolio copy and skills table
 │   └── model_card_v1.md       the Module 3 model card, preserved
+├── scripts/
+│   └── demo.py                runs the walkthrough, one beat at a time
 └── .github/workflows/ci.yml   tests + evaluation + report staleness check
 ```
 

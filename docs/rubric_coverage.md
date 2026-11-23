@@ -63,7 +63,7 @@ analysis at the bottom is the place to check.
 | README identifies the base project | yes |
 | `model_card.md` answers AI collaboration, biases, testing results | yes |
 | 2–3 example inputs with outputs as fenced code blocks, no video needed | 3 in the README, 9 in `assets/` |
-| Loom walkthrough (optional) | not recorded — script ready in [`docs/portfolio.md`](portfolio.md) |
+| Loom walkthrough (optional) | not recorded — script, preflight checklist and a one-command runner ready in [`demo_script.md`](demo_script.md) + `scripts/demo.py` |
 
 ---
 
@@ -98,7 +98,14 @@ Stated rather than hidden, since a reviewer will find them anyway:
    is insufficient, so the requirement is met — and `diagrams/README.md` renders both diagrams
    inline on GitHub. To produce images:
    `mmdc -i diagrams/architecture.mmd -o assets/architecture.png -b transparent -s 2`.
-2. **No Loom walkthrough.** Explicitly optional. The script is in `docs/portfolio.md`.
+2. **No Loom walkthrough.** Explicitly optional in the brief's submission checklist, which
+   asks for pasted reproducible examples "without relying on a video". If one is wanted
+   anyway, it is about twenty minutes of work: [`demo_script.md`](demo_script.md) has the
+   timed script and a preflight checklist, and `python scripts/demo.py` drives every command
+   so there is nothing to type on camera. **Caveat:** brief section 6 ("Presentation and
+   Portfolio") arrived with no body, and a presentation requirement would most plausibly live
+   there, so confirm against section 6 and the course grading page before treating a video as
+   optional.
 3. **The live Claude path is unverified against the real API.** Its request shape is pinned by
    tests with a fake client; no test has made a real call, because no key was available. Stated
    in the model card and in EVALUATION.md.

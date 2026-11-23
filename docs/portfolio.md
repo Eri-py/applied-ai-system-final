@@ -67,6 +67,11 @@ demonstrate — every number here is in [EVALUATION.md](../EVALUATION.md).
 
 ## Five-minute demo script
 
+> A fuller version of this — with a preflight checklist, three cut lengths and a one-command
+> runner (`python scripts/demo.py`) — is in [`demo_script.md`](demo_script.md). What follows is
+> the condensed form.
+
+
 Run these in order. Each line of narration maps to something on screen.
 
 ### 0. Setup (before you present)
