@@ -47,6 +47,11 @@ jobs:
         # system's measured behaviour fails the build rather than only the unit tests.
         run: python -m evaluation.run_eval
 
+      - name: Check the rendered diagram page matches its Mermaid sources
+        # diagrams/README.md is generated from the .mmd files so the diagrams render on
+        # GitHub. A hand-edited copy would drift from its source silently.
+        run: python diagrams/build_readme.py --check
+
       - name: Check the committed evaluation report is up to date
         # The numbers quoted in EVALUATION.md and the README must match what the harness
         # actually produces. Regenerating and diffing is how that stays true.

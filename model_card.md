@@ -197,15 +197,23 @@ absent. It is more code and a fuzzier boundary, and it is right.
 
 ### What I would not claim
 
-That the playlists are good. Eight of twelve survived my own review, and my review is not
-independent — the same process that produced the playlists produced the assessment, and the
-human verdict column in `docs/human_eval.md` is deliberately still empty because nobody has
-actually listened. The automated suite cannot close that gap: in the one case human judgement
-called an outright failure, every automated check passed.
+That the playlists are good. Eight of twelve survived review, one failed outright, and that
+review is **not independent** — the same process that produced the playlists produced the
+assessment. [`docs/human_eval.md`](docs/human_eval.md) scores all twelve against a four-part
+rubric and attributes every verdict to "Reviewer A", with the conflict of interest stated at the
+top and a filled-in protocol and empty table for an independent second rater.
+
+There is also a harder limit worth naming: **the 22 songs are fictional, so there is no audio
+and nobody can evaluate these playlists by listening to them.** What the review does is read
+each playlist's metadata against the request and judge whether the selection is defensible.
+That is a weaker instrument than listening, and it still caught two things the 283 unit tests
+and 29 labelled cases all missed — including the one case where every automated check passes
+and two of five tracks are plainly the wrong feeling.
 
 ### Limitations, stated plainly
 
-1. 22 fictional songs. Several constraints are unsatisfiable in principle.
+1. 22 fictional songs, and no audio — several constraints are unsatisfiable in principle, and
+   no playlist this system produces can be assessed by listening to it.
 2. The notes corpus is unsourced and is doing most of the work.
 3. Confidence predicts under-specification, not incorrectness.
 4. Mood conflict is still unpenalised — the failure Module 3 predicted and 2.0 did not fix.
@@ -223,9 +231,11 @@ In the order I would actually do it:
    one result in this project I am least willing to defend.
 2. **A score floor in the critic**, so a duration target cannot ship a 1.28-scoring track
    without at least flagging the tail as padding rather than recommendation.
-3. **Get the human verdict column filled in** by someone who did not build this, then use it
-   as held-out data to test whether confidence predicts anything about quality. That is the
-   only honest route to fixing weakness 3.
+3. **Get a second, independent rating** using the protocol at the end of
+   [`docs/human_eval.md`](docs/human_eval.md) — about twenty minutes of someone else's time —
+   then use those twelve verdicts as held-out labels to test whether confidence predicts
+   anything about quality. They would be the only data in the project not produced by the
+   system being measured, which makes this the only honest route to fixing weakness 3.
 4. **Stem the retrieval index and source the notes**, in that order — the first is an
    afternoon, the second is the real debt.
 5. **Run the live path and the tool loop over the full case set** and publish the comparison

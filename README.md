@@ -69,10 +69,13 @@ Everything new wraps it.
 
 ## Architecture
 
+**[View both diagrams rendered →](diagrams/README.md)** (GitHub draws them inline.)
+
 Source: [`diagrams/architecture.mmd`](diagrams/architecture.mmd) (the whole system) and
 [`diagrams/agent_loop.mmd`](diagrams/agent_loop.mmd) (one real run as a sequence). Both are
-Mermaid source — paste into [mermaid.live](https://mermaid.live), or render with
-`mmdc -i diagrams/architecture.mmd -o assets/architecture.png`.
+Mermaid source. [`diagrams/README.md`](diagrams/README.md) is generated from them by
+`python diagrams/build_readme.py` and gated in CI, so it cannot drift. To export an image:
+`mmdc -i diagrams/architecture.mmd -o assets/architecture.png -b transparent -s 2`.
 
 The request flows through five stages.
 
@@ -189,6 +192,7 @@ python -m evaluation.run_eval            # 29 cases + three experiments
 python -m evaluation.run_eval --write    # regenerate EVALUATION.md
 python -m src.main                       # the original Module 3 demo, unchanged
 bash assets/regenerate.sh                # regenerate the committed command output
+python diagrams/build_readme.py          # regenerate the rendered diagram page
 ```
 
 Exit codes: `0` playlist produced and passed its checks, `1` constraints left unsatisfied,
@@ -426,7 +430,7 @@ vague requests from specified ones by 0.34, but separates passing from failing r
 | **Ablation: retrieval off** | **55% pass, mean confidence 0.21** |
 | Calibration: thin vs specified requests | 0.35 vs 0.69 (gap 0.34) |
 | Calibration: failing vs passing runs | gap 0.05 — weak |
-| Human review of 12 playlists | 8 clean, 3 weak, 1 outright failure ([docs/human_eval.md](docs/human_eval.md)) |
+| Human review of 12 playlists | 8 pass, 3 weak, 1 fail — scored against a 4-part rubric ([docs/human_eval.md](docs/human_eval.md)) |
 
 ### What worked
 
@@ -522,13 +526,16 @@ applied-ai-system-final/
 ├── tests/                     283 tests
 ├── diagrams/
 │   ├── architecture.mmd       Mermaid source — the whole system
-│   └── agent_loop.mmd         Mermaid source — one real run
+│   ├── agent_loop.mmd         Mermaid source — one real run
+│   ├── README.md              both diagrams, rendered by GitHub (generated)
+│   └── build_readme.py        generates that page from the .mmd sources
 ├── assets/
 │   ├── sample-output.md       nine reproducible command outputs
 │   ├── sample-run-winddown.jsonl   a full JSONL run log
 │   └── regenerate.sh          regenerates sample-output.md
 ├── docs/
-│   ├── human_eval.md          human evaluation protocol and findings
+│   ├── human_eval.md          human evaluation: 12 scored playlists + findings
+│   ├── rubric_coverage.md     requirement-by-requirement coverage map
 │   ├── portfolio.md           portfolio copy and a demo script
 │   └── model_card_v1.md       the Module 3 model card, preserved
 └── .github/workflows/ci.yml   tests + evaluation + report staleness check
