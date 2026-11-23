@@ -500,7 +500,8 @@ share of the work than making it work when it does.
 > The graded responsible-AI reflection — how I collaborated with AI, one suggestion I accepted
 > and one I rejected, bias analysis and the system's limitations — is in
 > **[model_card.md](model_card.md)**, with the full collaboration log in
-> **[ai_interactions.md](ai_interactions.md)**.
+> **[ai_interactions.md](ai_interactions.md)**. Portfolio copy and a five-minute demo script
+> are in **[docs/portfolio.md](docs/portfolio.md)**.
 
 ---
 
@@ -528,6 +529,7 @@ applied-ai-system-final/
 │   └── regenerate.sh          regenerates sample-output.md
 ├── docs/
 │   ├── human_eval.md          human evaluation protocol and findings
+│   ├── portfolio.md           portfolio copy and a demo script
 │   └── model_card_v1.md       the Module 3 model card, preserved
 └── .github/workflows/ci.yml   tests + evaluation + report staleness check
 ```
