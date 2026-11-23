@@ -1,0 +1,61 @@
+name: tests
+
+# Runs the test suite and the evaluation harness on every push and pull request.
+#
+# No API key is configured here, and that is deliberate: VIBEFINDER_OFFLINE pins the
+# deterministic planner, so CI proves the claim the README makes -- that the whole system,
+# its tests and its published evaluation numbers reproduce with no credentials and no spend.
+# A build that needed a secret to pass would not be evidence of that.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  VIBEFINDER_OFFLINE: "1"
+  VIBEFINDER_NO_LOG: "1"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run the test suite
+        run: python -m pytest -q
+
+      - name: Run the evaluation harness
+        # Exits non-zero if any labelled case regresses, so a change that breaks the
+        # system's measured behaviour fails the build rather than only the unit tests.
+        run: python -m evaluation.run_eval
+
+      - name: Check the committed evaluation report is up to date
+        # The numbers quoted in EVALUATION.md and the README must match what the harness
+        # actually produces. Regenerating and diffing is how that stays true.
+        run: |
+          cp EVALUATION.md /tmp/EVALUATION.committed.md
+          python -m evaluation.run_eval --write > /dev/null
+          if ! diff -q /tmp/EVALUATION.committed.md EVALUATION.md; then
+            echo "::error::EVALUATION.md is stale. Run 'python -m evaluation.run_eval --write' and commit the result."
+            diff /tmp/EVALUATION.committed.md EVALUATION.md || true
+            exit 1
+          fi
+          echo "EVALUATION.md matches the harness output."

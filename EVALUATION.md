@@ -26,7 +26,7 @@ The load-bearing evidence is in the three experiments below, where the system is
 | `adversarial` | 4 | 4 | 100% | n/a |
 | `constraint` | 8 | 8 | 100% | 0.67 |
 | `edge` | 4 | 4 | 100% | 0.66 |
-| `happy` | 7 | 7 | 100% | 0.66 |
+| `happy` | 7 | 7 | 100% | 0.67 |
 | `situation` | 4 | 4 | 100% | 0.72 |
 | `thin` | 2 | 2 | 100% | 0.35 |
 
@@ -40,7 +40,7 @@ The load-bearing evidence is in the three experiments below, where the system is
 | `party` | `happy` | "a house party playlist that builds" | PASS | 0.68 | 2 | 5 criteria met |
 | `night_drive` | `happy` | "music for a long night drive on the motorway" | PASS | 0.73 | 1 | 4 criteria met |
 | `genre_explicit` | `happy` | "give me some lo-fi" | PASS | 0.45 | 1 | 4 criteria met |
-| `discovery` | `happy` | "i want to discover something obscure and new to me" | PASS | 0.45 | 1 | 4 criteria met |
+| `discovery` | `happy` | "i want to discover something obscure and new to me" | PASS | 0.49 | 1 | 4 criteria met |
 | `heartbreak` | `situation` | "my girlfriend dumped me" | PASS | 0.77 | 1 | 5 criteria met |
 | `crying` | `situation` | "i cant stop crying" | PASS | 0.63 | 1 | 3 criteria met |
 | `sleepless` | `situation` | "i cant get to sleep" | PASS | 0.64 | 2 | 4 criteria met |
@@ -96,7 +96,7 @@ A confidence number that does not separate good runs from bad ones is not measur
 |---|---|
 | scored runs (refusals excluded) | 22 |
 | mean confidence, thin requests | 0.35 |
-| mean confidence, specified requests | 0.686 |
+| mean confidence, specified requests | 0.689 |
 | thin scored below specified | True |
 | --- pass/fail separation, measured on the no-retrieval runs --- |  |
 | degraded runs scored | 18 |
@@ -106,7 +106,7 @@ A confidence number that does not separate good runs from bad ones is not measur
 
 **Reading this honestly: the confidence score is good at one of its two jobs and weak at the other.**
 
-It separates a thin request from a well-specified one clearly -- a gap of 0.336 between the two groups (0.35 against 0.686). That is the failure it was built to catch, and it catches it.
+It separates a thin request from a well-specified one clearly -- a gap of 0.339 between the two groups (0.35 against 0.689). That is the failure it was built to catch, and it catches it.
 
 It is much weaker at separating runs that *failed* from runs that *passed* when both were equally under-informed: only 0.048 between them in the degraded configuration. The reason is structural -- two of the four components (retrieval strength and specificity) are near zero for every run in that configuration, so they depress the score for the passing and failing runs alike. In other words the score answers "was I told enough to do this well?" and not "did I actually get this one right?". Those are different questions, and only the first is currently measured. Narrowing that gap would need a signal the system does not yet have, such as held-out human judgements to regress against.
 

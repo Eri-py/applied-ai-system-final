@@ -1,11 +1,11 @@
 {
   "generated_by": "python -m evaluation.run_eval --write",
   "backend": "offline (deterministic planner; evaluation)",
-  "elapsed_seconds": 0.45,
+  "elapsed_seconds": 0.46,
   "summary": {
     "cases": 29,
     "passed": 29,
-    "mean_confidence": 0.65
+    "mean_confidence": 0.652
   },
   "cases": [
     {
@@ -286,7 +286,7 @@
       "category": "happy",
       "request": "i want to discover something obscure and new to me",
       "passed": true,
-      "confidence": 0.45,
+      "confidence": 0.492,
       "iterations": 1,
       "error": "",
       "criteria": [
@@ -309,7 +309,7 @@
           "name": "max_mean_popularity",
           "expected": 70,
           "passed": true,
-          "observed": "mean popularity 50"
+          "observed": "mean popularity 36"
         },
         {
           "name": "no_repeat_artist",
@@ -959,7 +959,7 @@
         "passed": 29,
         "total": 29,
         "pass_rate": 1.0,
-        "mean_confidence": 0.65
+        "mean_confidence": 0.652
       },
       "without_retrieval": {
         "passed": 16,
@@ -985,9 +985,9 @@
     },
     "calibration": {
       "scored_runs": 22,
-      "mean_confidence_all_passing": 0.65,
+      "mean_confidence_all_passing": 0.652,
       "mean_confidence_thin_requests": 0.35,
-      "mean_confidence_specified_requests": 0.686,
+      "mean_confidence_specified_requests": 0.689,
       "thin_scored_below_specified": true,
       "separation_measured_on": "the no-retrieval configuration, where cases actually fail",
       "degraded_scored_runs": 18,
