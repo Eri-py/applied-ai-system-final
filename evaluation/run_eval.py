@@ -633,9 +633,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         RESULTS_JSON.write_text(
             json.dumps(
                 {
+                    # No timings or commit hash in here on purpose: this file is
+                    # committed, and CI regenerates it to check the report is not
+                    # stale. A value that changes on every run would make that
+                    # check fire constantly and mean nothing.
                     "generated_by": "python -m evaluation.run_eval --write",
                     "backend": agent.backend_detail,
-                    "elapsed_seconds": round(elapsed, 2),
                     "summary": {
                         "cases": len(outcomes),
                         "passed": sum(1 for outcome in outcomes if outcome.passed),
