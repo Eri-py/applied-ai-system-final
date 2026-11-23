@@ -1,0 +1,80 @@
+%% VibeFinder 2.0 - the agent's check-and-repair loop, as a sequence
+%%
+%% Mermaid source. Render at https://mermaid.live or with the Mermaid CLI:
+%%     mmdc -i diagrams/agent_loop.mmd -o assets/agent_loop.png
+%%
+%% This traces one real run: `python -m src.app "half an hour of lo-fi to wind down"`.
+%% The first attempt produces a musically sensible list in the wrong order, the critic
+%% catches the arc violation that no per-song score could express, and the repair fixes it.
+%% The full JSONL log for this run is committed at assets/sample-run-winddown.jsonl.
+
+sequenceDiagram
+    autonumber
+    actor L as Listener
+    participant G as Guardrails
+    participant R as NoteRetriever
+    participant P as Planner (Claude / offline)
+    participant A as Agent loop
+    participant T as ToolBox
+    participant C as Critic
+    participant F as Confidence
+    participant Log as Run log
+
+    L->>G: "half an hour of lo-fi to wind down"
+    G->>G: screen: not empty, no injection, 34 chars
+    G-->>A: accepted (music_signal = true)
+    A->>Log: request_received, guardrail
+
+    rect rgb(243, 232, 255)
+        note over R,P: 1 - PLAN
+        A->>R: search(request, k=3)
+        R-->>A: context-sleep (7.18), theory-energy-arc (6.94),<br/>genre-pop-urban (4.22)
+        A->>A: off-domain check passes - keyword-backed match
+        A->>P: plan(request, retrieved notes as grounding)
+        P-->>A: {mood: chill, energy: 0.22, tempo: 62,<br/>language: instrumental, arc: descend,<br/>genre: lofi, total_minutes: 30}
+        A->>A: clamp_profile() - all values already legal
+        A->>T: catalog_stats() - mean track 233s
+        A->>A: 30 min / 233s = size the list at k=8
+        A->>Log: retrieved, planned, sized_for_duration
+    end
+
+    rect rgb(238, 247, 238)
+        note over A,C: 2 and 3 - ACT then CHECK (attempt 1)
+        A->>T: recommend(profile, k=8, diversify=true)
+        T-->>A: 8 songs, ranked by score
+        A->>C: check_playlist(picks, profile)
+        C->>C: size 8/8 ok · no repeated artist ok<br/>all scores positive ok · 32.8 min ok
+        C->>C: arc: asked for descend, but the list<br/>ends higher than it starts (0.28 -> 0.45)
+        C-->>A: FAIL [arc_violation]
+        A->>Log: attempt 1, failures [arc_violation]
+    end
+
+    rect rgb(255, 240, 240)
+        note over A,T: 4 - REPAIR
+        A->>A: repair(): order = "descend"
+        A->>Log: repair, action "re-ordered into a descend energy arc"
+    end
+
+    rect rgb(238, 247, 238)
+        note over A,C: 2 and 3 again (attempt 2)
+        A->>T: recommend(profile, k=8, diversify=true)
+        T-->>A: same 8 songs
+        A->>A: apply_order(picks, "descend")
+        A->>C: check_playlist(reordered picks, profile)
+        C->>C: arc now runs 0.52 -> 0.19, ends quietest
+        C-->>A: PASS
+        A->>Log: attempt 2, ok
+    end
+
+    rect rgb(232, 244, 255)
+        note over F,Log: REPORT
+        A->>T: next_candidate_score() - best song left behind
+        A->>F: score_run(retrieval, profile, picks, failures, iterations)
+        F-->>A: 0.786 HIGH<br/>retrieval 0.897 · specificity 0.889<br/>margin 0.50 · constraints 0.95
+        A->>P: narrate(request, profile, picks, confidence)
+        P-->>A: closing paragraph, built only from recorded reasons
+        A->>Log: confidence, final
+    end
+
+    A-->>L: 8 songs, each with its scoring reasons,<br/>confidence 0.786, and the repair it made
+    note over L,Log: Exit code 0. Every number shown is in the JSONL log,<br/>which evaluation/run_eval.py reads back and asserts on.

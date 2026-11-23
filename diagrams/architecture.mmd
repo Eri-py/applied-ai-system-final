@@ -1,0 +1,132 @@
+%% VibeFinder 2.0 - system architecture
+%%
+%% Mermaid source. Render at https://mermaid.live or with the Mermaid CLI:
+%%     mmdc -i diagrams/architecture.mmd -o assets/architecture.png
+%%
+%% Reading the diagram: the request flows left to right through the guardrails, then the
+%% plan/act/check/repair loop in the middle, and out to the user bottom right. The two
+%% knowledge sources (the notes corpus and the song catalog) feed in from the top. Human
+%% and automated checking points are drawn in the Verification subgraph at the bottom.
+
+flowchart TB
+    user([Listener's plain-English request]):::human
+
+    subgraph sources[Knowledge sources on disk]
+        direction LR
+        notes[("data/notes/<br/>14 listening notes<br/>prose + structured hints")]:::data
+        catalog[("data/songs.csv<br/>22 songs, 15 columns")]:::data
+    end
+
+    subgraph guard[Guardrails - src/guardrails.py]
+        direction TB
+        screen["check_request()<br/>empty · too short · overlong<br/>prompt injection · unicode folding"]:::guard
+        refuse{{"refuse and explain<br/>exit code 2"}}:::refusal
+        domain["off_domain_verdict()<br/>needs BOTH no music vocabulary<br/>AND no keyword-backed note match"]:::guard
+    end
+
+    subgraph plan[1 · PLAN]
+        direction TB
+        retrieve["NoteRetriever.search()<br/>BM25 over the notes<br/>src/retrieval.py"]:::core
+        merge["merge_hints()<br/>top hit wins; tail hits below<br/>35% of top contribute nothing"]:::core
+        planner{"Planner<br/>src/llm.py"}:::llm
+        claude["ClaudeBackend<br/>claude-opus-5-5<br/>structured JSON output<br/>notes passed as grounding"]:::llm
+        offline["OfflineBackend<br/>deterministic: note hints<br/>+ explicit request signals"]:::fallback
+        clamp["clamp_profile()<br/>force into legal ranges<br/>drop unknown fields"]:::guard
+        cold{"any scorable<br/>preference?"}:::decision
+    end
+
+    subgraph act[2 · ACT - src/agent.py ToolBox]
+        direction TB
+        recommend["recommend()<br/>score_song + recommend_songs<br/>src/recommender.py - Module 3"]:::core
+        sample["diverse_sample()<br/>cold start: span genres<br/>and the energy range"]:::core
+    end
+
+    subgraph check[3 · CHECK - the critic]
+        direction TB
+        critic["check_playlist()<br/>properties no single song score<br/>can express"]:::core
+        rules["size · zero score · repeated artist<br/>genre flood · energy window<br/>language share · running time · arc"]:::note
+        verdict{"all<br/>constraints<br/>satisfied?"}:::decision
+    end
+
+    subgraph fix[4 · REPAIR]
+        direction TB
+        repair["repair()<br/>one narrow action per failure"]:::core
+        actions["exclude outlier · re-order into arc<br/>resize for duration · relax language<br/>re-enable diversity"]:::note
+        bound{"action available<br/>and under the<br/>5-attempt cap?"}:::decision
+    end
+
+    subgraph out[Report]
+        direction TB
+        confidence["score_run()<br/>retrieval · specificity<br/>margin · constraints<br/>src/confidence.py"]:::core
+        narrate["narrate()<br/>Claude, or deterministic<br/>text built from recorded reasons"]:::llm
+        render["render()<br/>playlist · per-song reasons<br/>confidence + components<br/>every repair made"]:::core
+    end
+
+    log[("logs/run-*.jsonl<br/>every event, timed<br/>src/obs.py")]:::data
+    answer([Explained playlist<br/>+ published confidence]):::human
+
+    subgraph verify[Verification - where results get checked]
+        direction LR
+        tests["pytest: 279 tests<br/>critic, repairs, guardrails,<br/>tool dispatch, reproducibility"]:::test
+        evalharness["evaluation/run_eval.py<br/>29 labelled cases<br/>+ ablation + calibration"]:::test
+        human_eval["docs/human_eval.md<br/>human listening judgement<br/>on 12 playlists"]:::human
+        ci["GitHub Actions<br/>tests + suite on every push"]:::test
+    end
+
+    user --> screen
+    screen -->|refused| refuse
+    screen -->|accepted| retrieve
+    notes --> retrieve
+    retrieve --> domain
+    domain -->|"no signal either way"| refuse
+    domain -->|vouched for| merge
+    merge --> planner
+    planner -->|"key present"| claude
+    planner -->|"no key, or API failure"| offline
+    claude -.->|"any exception:<br/>degrade and report"| offline
+    claude --> clamp
+    offline --> clamp
+    clamp --> cold
+    cold -->|yes| recommend
+    cold -->|no| sample
+    catalog --> recommend
+    catalog --> sample
+    recommend --> critic
+    sample --> critic
+    rules -.- critic
+    critic --> verdict
+    verdict -->|no| repair
+    actions -.- repair
+    repair --> bound
+    bound -->|yes, retry| recommend
+    bound -->|"no move left or cap hit:<br/>report what is unresolved"| confidence
+    verdict -->|yes| confidence
+    confidence --> narrate
+    narrate --> render
+    render --> answer
+
+    screen -.-> log
+    retrieve -.-> log
+    clamp -.-> log
+    recommend -.-> log
+    critic -.-> log
+    repair -.-> log
+    confidence -.-> log
+
+    log --> evalharness
+    answer --> human_eval
+    render --> tests
+    evalharness --> ci
+    tests --> ci
+    human_eval -.->|"findings feed back<br/>into the notes and weights"| notes
+
+    classDef human fill:#fff4e6,stroke:#b35c00,stroke-width:2px,color:#000
+    classDef data fill:#e8f4ff,stroke:#1a6fb5,stroke-width:1px,color:#000
+    classDef core fill:#eef7ee,stroke:#2d7a2d,stroke-width:1px,color:#000
+    classDef llm fill:#f3e8ff,stroke:#7a2db5,stroke-width:2px,color:#000
+    classDef fallback fill:#f7f7f7,stroke:#666,stroke-width:1px,stroke-dasharray:4 3,color:#000
+    classDef guard fill:#fff0f0,stroke:#b51a1a,stroke-width:1px,color:#000
+    classDef refusal fill:#ffdddd,stroke:#8b0000,stroke-width:2px,color:#000
+    classDef decision fill:#fffbe6,stroke:#9a8500,stroke-width:1px,color:#000
+    classDef test fill:#e6fffa,stroke:#0f7b6c,stroke-width:1px,color:#000
+    classDef note fill:#fcfcfc,stroke:#bbb,stroke-width:1px,color:#444

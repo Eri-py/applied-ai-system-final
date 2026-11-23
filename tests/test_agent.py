@@ -301,6 +301,23 @@ def test_has_scoring_signal():
     assert not _has_scoring_signal({})
 
 
+def test_discovery_mode_alone_counts_as_a_scoring_signal():
+    """Regression: `mode: discovery` carries a novelty weight, so it is rankable on its own."""
+    assert _has_scoring_signal({"mode": "discovery"})
+
+
+def test_discovery_request_ranks_by_novelty_rather_than_going_cold_start(agent):
+    """Found by human review: this request used to fall into the cold-start path, which
+    discarded the novelty ordering it had explicitly asked for."""
+    result = agent.run("i want to discover something obscure")
+    assert not result.cold_start
+    assert all(score > 0 for _, score, _ in result.picks)
+
+    popularities = [int(song["popularity"]) for song, _, _ in result.picks]
+    assert max(popularities) <= 50, f"a discovery list should be obscure, got {popularities}"
+    assert popularities == sorted(popularities), "novelty should order the list"
+
+
 # --- the tools -------------------------------------------------------------------------
 
 

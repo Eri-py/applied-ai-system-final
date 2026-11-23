@@ -41,7 +41,7 @@ from src.guardrails import (
 )
 from src.llm import build_backend
 from src.obs import RunLogger, logging_enabled, new_run_id
-from src.recommender import load_songs, recommend_songs
+from src.recommender import get_mode, load_songs, recommend_songs
 from src.retrieval import DEFAULT_NOTES_DIR, Hit, NoteRetriever, load_notes
 
 MAX_ITERATIONS = 5
@@ -130,8 +130,18 @@ SCORING_SIGNAL_FIELDS = (
 
 
 def _has_scoring_signal(profile: Dict) -> bool:
-    """True if the profile gives the scorer at least one thing to reward."""
-    return any(profile.get(field_name) not in (None, "", []) for field_name in SCORING_SIGNAL_FIELDS)
+    """True if the profile gives the scorer at least one thing to reward.
+
+    The scoring mode counts too, not just the preference fields: `discovery` carries a
+    novelty weight, which awards every song a score derived from its popularity, so a
+    profile of nothing but `mode: discovery` is genuinely rankable. Missing that sent
+    "I want to discover something obscure" down the cold-start path, which threw away the
+    novelty ordering the request had explicitly asked for.
+    """
+    if any(profile.get(field_name) not in (None, "", []) for field_name in SCORING_SIGNAL_FIELDS):
+        return True
+    weights = get_mode(profile.get("mode"))
+    return bool(weights.novelty or weights.popularity)
 
 
 @dataclass
@@ -677,7 +687,12 @@ class VibeAgent:
                 fields_checked=list(SCORING_SIGNAL_FIELDS),
             )
 
-        k_was_explicit = "k" in (plan.profile.get("_sources") or {}) or "k" in (overrides or {})
+        # `overrides` arrives from the CLI with a key per flag whether or not the flag was
+        # given, so an unset `-k` shows up as {"k": None}. Testing for the key alone made
+        # every CLI run look like it had an explicit song count, which silently disabled the
+        # duration sizing below -- the loop still converged, by repairing one song at a time,
+        # but it took three attempts where it should take one.
+        k_was_explicit = "k" in (plan.profile.get("_sources") or {}) or (overrides or {}).get("k") is not None
         if profile.get("total_minutes") and not k_was_explicit:
             mean_duration = self.tools.catalog_stats()["mean_duration_sec"]
             estimated = max(1, min(10, round(profile["total_minutes"] * 60 / mean_duration)))
