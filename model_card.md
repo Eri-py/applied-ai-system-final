@@ -1,380 +1,232 @@
-# 🎧 Model Card: VibeFinder 1.0
+# 🎧 Model Card: VibeFinder 2.0
 
-## 1. Model Name
-
-**VibeFinder 1.0** — a content-based music recommender simulation.
-
----
-
-## 2. Intended Use
-
-VibeFinder takes a written-down taste profile and returns the 5 songs from a 22-song catalog
-that best fit it, with a reason attached to every point it awarded.
-
-- **What it generates:** a ranked shortlist, plus an explanation per song ("genre match: pop
-  (+2.00); energy 0.82 vs target 0.80 (+1.44)").
-- **What it assumes about the user:** that they can name a genre, a mood, a rough energy level
-  (0.0–1.0) and whether they like acoustic music — and that this is stable. It assumes the
-  profile is *honest and complete*, which real users are not.
-- **Who it is for:** classroom exploration. It is a teaching instrument for seeing how data
-  becomes a ranking, not a product. There are no real users, no accounts and no feedback loop.
+The card for the applied system in this repository. The card for the original Module 3
+project is preserved unchanged at [`docs/model_card_v1.md`](docs/model_card_v1.md).
 
 ---
 
-## 3. How the Model Works
+## 1. What this is
 
-Imagine a judge with a scorecard, sitting with a stack of 22 song cards and one card
-describing the listener.
+**VibeFinder 2.0** turns a plain-English listening request into a playlist drawn from a fixed
+22-song catalog, together with the reason for every song, every correction it made along the
+way, and a numeric confidence in the result.
 
-The judge picks up a song and goes down the scorecard. Same genre as the listener asked for?
-Two points. Not the same, but a close relative — "indie pop" when they asked for "pop"? One
-point. Same mood? One more point. Any of the little vibe words matching ("sleepy",
-"aggressive", "nostalgic")? Four tenths of a point each, up to about one point in total.
+It is not a model. It is a **system built around one**, and the distinction matters for
+everything below:
 
-Then the two sliding scales. For energy, the judge does **not** reward loud songs — it rewards
-*close* songs. The listener who asked for calm (0.40) gets full marks for a 0.42 song and
-nothing at all for a 0.95 one. Tempo works the same way in beats per minute, but only if the
-listener bothered to name one. Finally, if the listener said they like acoustic music, the
-judge pays them a fraction of a point proportional to how acoustic the song is — and if they
-said they don't, it pays the mirror image.
+| Component | What it is | Deterministic? |
+|---|---|---|
+| Retrieval | BM25 over 14 hand-written listening notes | yes |
+| Planner | Claude `claude-opus-5-5` via structured JSON output | no |
+| Planner fallback | Keyword + note-hint rules | yes |
+| Scorer / ranker | The unchanged Module 3 `score_song` / `recommend_songs` | yes |
+| Critic and repairs | Constraint checks and registered corrective actions | yes |
+| Confidence | Weighted sum of four measured components | yes |
+| Narrator | Claude, or text assembled from recorded reasons | no |
 
-Every song gets a total and a list of reasons. Then a second person — the referee — lines all
-22 up from highest to lowest and takes the top five. The referee does one extra thing the judge
-cannot: if an artist or a genre has already been picked, the next song from that artist loses
-1.5 points and the next song from that genre loses 0.75, just for the purposes of making the
-list. That is what stops a top-5 from being the same artist five times.
+Only two steps involve a language model. Everything that decides *which songs you get* is
+arithmetic I can read, which is why the system can claim byte-identical reproducibility and
+why its failures are attributable.
 
-**Changes from the starter logic:** the starter had empty function bodies. On top of the
-suggested recipe (genre +2 / mood +1 / energy similarity) I added partial genre credit, vibe
-tags, tempo and acousticness terms, a popularity-based novelty bonus, five named scoring modes
-the CLI can switch between, and the artist/genre diversity penalty.
+## 2. Intended use
 
----
+**Intended.** A teaching and portfolio artefact. A worked example of putting retrieval,
+agentic self-checking, guardrails and measured confidence around a small, fully legible
+recommender, where every component is small enough to read in one sitting.
 
-## 4. Data
+**Not intended.** Real music discovery (the catalog is 22 fictional songs), any decision about
+a person, or any setting where the output is consumed without the explanation beside it. The
+explanation is not decoration here — a playlist from this system without its confidence score
+is actively misleading, because the system's most interesting property is that it knows when
+it is guessing.
 
-`data/songs.csv` — 22 fictional songs, 15 columns.
+**Out of scope by design.** It refuses instruction-override attempts and requests that are
+neither musical in wording nor recognisable as a listening situation. It has no users, no
+history and no behavioural signal, so it cannot do collaborative filtering and does not
+pretend to.
 
-- **Original columns:** `id`, `title`, `artist`, `genre`, `mood`, `energy`, `tempo_bpm`,
-  `valence`, `danceability`, `acousticness`.
-- **Columns I added (5):** `popularity` (0–100), `release_decade`, `mood_tags`
-  (semicolon-separated descriptive tags such as `nostalgic;sleepy;focused`), `language`
-  (`english` / `instrumental` / `spanish` / `yoruba`) and `duration_sec`. All five are scored,
-  not just stored.
-- **Rows I added:** 12, taking the catalog from 10 to 22, specifically to add genres and moods
-  the starter had none of — afrobeats, hip hop, classical, metal, country, reggaeton, r&b,
-  folk, drum and bass, gospel, bedroom pop, house, and the moods `melancholy`, `romantic` and
-  `energetic`.
-- **Genres:** 19 distinct labels across 22 songs. **Moods:** 9. **Decades:** 1990s–2020s,
-  heavily skewed to 2020 (10 of 22). **Languages:** 12 English, 8 instrumental, 1 Spanish,
-  1 Yoruba. **Lengths:** 142–402 seconds.
+## 3. Data
 
-**What is missing from this dataset as a picture of musical taste:** almost everything. One
-song per genre for most genres, so genre-level conclusions are really song-level conclusions.
-No non-English-language metadata beyond a couple of titles. No live vs studio, no album
-context, no song length, no release year (only a decade bucket). `energy` spans 0.19
-to 0.98 but bunches in the middle, so the extremes of the scale are thin.
-And the whole catalog was invented by me and an AI assistant, which means its "genres" are
-tidier and more separable than real metadata ever is.
+**Song catalog** (`data/songs.csv`) — 22 fictional songs across 19 genres, 15 columns, written
+by hand for Module 3. Fictional on purpose: no real artist's work is being characterised, and
+the audio-feature values are stated rather than inferred, so there is no hidden model.
 
----
+**Listening-note corpus** (`data/notes/*.md`) — 14 notes, roughly 3,150 words, new in 2.0.
+Eight describe listening contexts (workout, focus, sleep, party, commute, rainy day,
+heartbreak, morning), three describe genre families, three cover ordering, diversity and cold
+starts. Each carries prose plus a `hints:` block of structured defaults.
 
-## 5. Strengths
+**The notes are the system's most consequential and least audited input**, and that deserves
+stating plainly. They are my own synthesis, written in my own voice, summarising claims about
+music psychology — tempo entrainment near resting heart rate, the irrelevant speech effect,
+sad listeners preferring sad music — that I believe are broadly supported but have not
+systematically sourced, and that are stated far more crisply in the notes than the underlying
+literature would justify. The ablation shows these notes drive a 45-point swing in the system's
+measured pass rate. **An unsourced corpus is doing most of the work**, which is the single
+biggest epistemic weakness in the project.
 
-- **Coherent, well-specified profiles get genuinely sensible answers.** The lofi profile
-  returns `Library Rain`, `Midnight Coding`, `Spacewalk Thoughts`, `Coffee Shop Stories`,
-  `Dust Road Home` — not one of those would be out of place on a 1am study playlist, and the
-  last two aren't even lofi. That is content-based filtering working as intended: it found the
-  *vibe* past the label.
-- **The energy term behaves.** In every profile that named a genre the catalog actually
-  has, the rank-1 song was within **0.03** of the target energy. The distance scoring does the job it was written for.
-- **Every result is auditable.** Nothing in the output is unexplained, which is how I found all
-  the problems in section 6.
-- **Graceful degradation.** Missing preferences, unknown genres and unknown tags are skipped
-  rather than crashing; the system scores what it has.
-- **The diversity penalty earns its keep.** Comparing `--no-diversity` to the default on the
-  pop profile, it is the only reason the top 5 is not pop, pop, pop.
+## 4. How it decides
 
----
+1. **Screen** the request (empty, too short, overlong, injection attempt).
+2. **Retrieve** the most relevant notes by BM25; merge their hints, ignoring any note scoring
+   below 35% of the top hit.
+3. **Plan** a profile — Claude grounded in the retrieved prose, or the deterministic planner
+   using the hints plus explicit request signals — then clamp it into legal ranges.
+4. **Act**: score and rank the catalog. If nothing in the profile is scorable, take the
+   cold-start path instead and return deliberate coverage.
+5. **Check** against constraints no single song score can express: repeated artist, genre
+   flooding, energy window, language share, running time, energy arc.
+6. **Repair** one narrow action per failure and retry, up to five attempts.
+7. **Report** the playlist, the reasons, the repairs, and a confidence with its components.
 
-## 6. Limitations and Bias
+Full diagrams: [`diagrams/architecture.mmd`](diagrams/architecture.mmd) and
+[`diagrams/agent_loop.mmd`](diagrams/agent_loop.mmd).
 
-**The weakness I would fix first: VibeFinder cannot handle a conflicted user, and it does not
-admit it.** The `sad_banger` profile asks for something coherent to a human and impossible to
-my scoring rule — melancholy, acoustic, and 0.90 energy at 170 bpm, i.e. "a sad song I can
-cry to at the gym". No song in the catalog is all of those, so the score degenerates into
-"whatever wins the most *separate* terms", and the answer comes back **`Gym Hero`** — an
-0.93-energy pop workout track whose mood is `intense` and whose acousticness is 0.05, the
-precise opposite of two of the three things the user asked for. It got there on +2.00 for
-genre and +1.41 for energy alone, which was enough to beat songs that actually matched the
-melancholy. A weighted sum has no idea that "melancholy" and "hype" are in tension; it just
-adds up whatever it can find. Worse, the explanation it prints is *technically true for every
-line* while being a bad recommendation overall, which is exactly the failure mode that is hard
-to catch in a big system. (Running the same profile under `--mode mood_first` returns
-`Nocturne in Grey` — classical, melancholy, 0.97 acousticness — so the catalog *does* hold a
-better answer; the default weights simply cannot reach it.)
+## 5. Biases and failure modes
 
-Other limitations, in rough order of how much they distort the output:
+### Inherited from Module 3, still present
 
-- **Genre monopoly on a tiny catalog.** +2.00 for genre against a best observed total of
-  6.91 means roughly 30% of a winning score comes from one string comparison. For the
-  pop user, the only reason non-pop songs appear at all is the diversity penalty.
-- **Broad labels beat narrow ones, for spelling reasons.** The partial-match rule rewards
-  shared *words*: `pop` earns half credit from `indie pop` and `bedroom pop`, so a user who
-  says "pop" effectively has three genres while a user who says "afrobeats" has exactly one
-  and can never score a genre point from anything else. Users of genres with compound English
-  names are structurally advantaged over users of genres without them.
-- **The energy-gap cliff punishes people with extreme taste.** The term dies at a gap of 0.5,
-  so a user targeting 0.5 energy earns energy points from all 22 songs, while a user targeting
-  0.95 earns them from 15 and a user targeting 0.1 from 10. "I want the gentlest possible
-  music" and "I want the most
-  intense possible music" are both served worse than "I want something middling", purely
-  because of where the catalog's numbers happen to sit.
-- **Total cold start.** The `empty` profile scores every song **0.00** and the tie-break falls
-  through to alphabetical title order, so a brand new user is shown `Basement Warehouse`,
-  `Bedroom Tape`, `Breakline`… This is a real failure dressed up as a result: the list looks
-  like a recommendation and is actually the alphabet. A real system would fall back to
-  popularity or to editorial playlists.
-- **Popularity bias is available on request.** `discovery` mode deliberately inverts it, but
-  the `popularity` weight exists and in `balanced` mode is set to 0 — so the default is
-  popularity-blind, which is itself a choice: the obscure classical piece and the hit are
-  treated as equals, which no real platform would do.
-- **The language term serves English speakers and nobody else.** 20 of the 22 songs are either
-  English or instrumental, so those two preferences find plenty; a user who sets
-  `language="spanish"` can earn that +0.60 from exactly one song in the catalog and
-  `language="yoruba"` likewise. The scoring code treats all languages identically — the
-  unfairness is entirely in the data, which is precisely how it happens in real catalogs, and
-  it is invisible unless you count the rows.
-- **Filter bubble by construction.** The profile never updates. Whatever genre the user typed
-  on day one is the genre that wins +2.00 forever. There is no exploration term, no decay, no
-  randomness — if this ran in production, the only songs a user would ever see outside their
-  genre are the ones the diversity penalty lets through.
-- **Features it ignores entirely:** lyrics, vocals, `valence` and `danceability` (in the data
-  but unscored), release year, artist similarity, and anything the user has actually listened
-  to. Language and length are scored, but only as an exact string match and a distance — the
-  system has no idea that Spanish and Portuguese are closer to each other than to Yoruba.
+- **Genre-spelling advantage.** Broad labels beat narrow ones for no musical reason: `pop`
+  scores a full genre match where `bedroom pop` gets partial credit against a `pop` request.
+- **The middle of the energy scale wins.** The catalog bunches around 0.3–0.5 and 0.7–0.9, so
+  requests landing in those bands match widely and requests at the extremes match thinly.
+- **Mood conflict is unrewarded but never penalised.** This is the big one, and it is the exact
+  failure that **Module 3's own model card predicted in its Future Work section** and I did not
+  fix: a song matching no mood and no tag can still rank highly by accumulating energy, tempo
+  and texture points. Human review found it live — a communal, uplifting gospel track ranks
+  fourth in a playlist asked to be nocturnal and cinematic ([`docs/human_eval.md`](docs/human_eval.md),
+  case 5). It passes every automated check. Fixing it means changing the Module 3 scoring
+  weights, which deserves its own measurement rather than a patch to make one case pass.
 
----
+### New in 2.0
 
-## 7. Evaluation
+- **The notes corpus is a bias vector, not just a knowledge source.** Every claim in it becomes
+  a default applied to real requests. The heartbreak note's instruction to match the feeling
+  rather than lift it is, I think, correct and well supported — but it is a judgement about
+  what is good for a distressed person, encoded as a number (`energy: 0.28`), applied without
+  asking. A listener who wants to be cheered up is served badly and is never offered the
+  choice.
+- **English-centred retrieval.** The BM25 index has no stemming and no synonyms beyond a
+  hand-written table. "Exercising" does not match the workout note's "exercise"; a non-native
+  phrasing or a typo degrades silently to a weaker profile and a lower confidence. The system
+  will quietly serve worse results to people who phrase things differently from me.
+- **The language constraint is near-unsatisfiable.** One Spanish track, one Yoruba track. Any
+  non-English request gets relaxed. The relaxation is explained, which is the right behaviour,
+  but the underlying service is still English-first.
+- **Confidence measures the wrong thing more than I would like.** It separates under-specified
+  requests from specified ones well (0.35 against 0.69). It barely separates runs that *failed*
+  from runs that *passed* — 0.05 in the degraded configuration. It answers "was I told enough
+  to do this well?" and not "did I get this one right?", and those read identically to a user.
+- **Off-domain refusal is approximate.** It needs both no musical vocabulary and no
+  keyword-backed note match, biased toward accepting. "My tax return is late" is refused and
+  "i cant stop crying" is served, which is right — but that boundary rests on a threshold
+  tuned against a handful of examples, and it will misjudge cases I have not thought of.
 
-### Profiles tested
+## 6. Evaluation
 
-| Profile | What it tests |
-|---------|---------------|
-| `happy_pop` | The baseline: a coherent, fully-specified profile. |
-| `chill_lofi` | Low energy and acoustic preference — the opposite corner of the space. |
-| `intense_rock` | High energy plus a tempo target, to see tempo do any work at all. |
-| `sad_banger` | **Adversarial:** internally contradictory (melancholy + acoustic + 0.9 energy @ 170bpm). |
-| `empty` | **Adversarial:** cold start, no preferences whatsoever. |
-| `instrumental_study` | The two newest features: `language` and `duration_sec`. |
-| `unknown_genre` | **Adversarial:** a genre (`polka`) that does not exist in the catalog. |
+Full report: [EVALUATION.md](EVALUATION.md). Human judgement:
+[`docs/human_eval.md`](docs/human_eval.md).
 
-### What I looked for
+| Measurement | Result |
+|---|---|
+| Unit tests | 283 passed |
+| Labelled cases | 29/29 passed, mean confidence 0.65 |
+| Reproducibility (3 runs each) | 29/29 byte-identical |
+| Retrieval ablation | 100% → **55%** pass rate; confidence 0.65 → 0.21; 13 cases break |
+| Confidence: thin vs specified requests | 0.35 vs 0.69 |
+| Confidence: failing vs passing runs | gap of 0.05 — weak |
+| Human review of 12 playlists | 8 clean, 3 weak, 1 failure |
 
-Whether rank 1 was defensible to a human; whether the explanation matched the song; whether any
-single song dominated across unrelated profiles; and whether the adversarial profiles produced
-*something* rather than crashing or returning nonsense.
+**Read the 29/29 sceptically.** The cases were written alongside the fixes they describe: I
+found seven real defects by running the system and reading its output, and added the case that
+would have caught each one as I fixed it. That makes the suite a regression guard, not a
+quality measure. The ablation and the human review are the parts that tested the system against
+something it was not tuned for, and both found real problems.
 
-### The adversarial runs
+**The live Claude path is not verified end to end.** Its request shape is pinned by tests with
+a fake client — model id, closed schema, grounding content reaching the model, refusal
+handling, beta-rejection retry — but no test here has called the real API, because the machine
+this was built on had no key. Every published number comes from the deterministic planner. This
+is stated rather than glossed because "we use Claude" implying "and we tested that" is exactly
+the kind of claim this card exists to prevent.
 
-```
-=== Adversarial — wants to cry at 180 bpm (sad mood, 0.9 energy) ===
-Profile: genre=pop, mood=melancholy, energy=0.9, tempo_bpm=170, likes_acoustic=True, mood_tags=['melancholy', 'hype']
-Mode: balanced | diversity penalty: on
+## 7. Responsible-AI reflection
 
-╭─────┬────────────────┬───────────────┬───────────────┬─────────┬──────────┬─────────┬────────────────────────────────────────────────╮
-│   # │ Title          │ Artist        │ Genre         │ Mood    │   Energy │   Score │ Why                                            │
-├─────┼────────────────┼───────────────┼───────────────┼─────────┼──────────┼─────────┼────────────────────────────────────────────────┤
-│   1 │ Gym Hero       │ Max Pulse     │ pop           │ intense │     0.93 │    3.90 │ genre match: pop (+2.00); shared vibe: hype    │
-│     │                │               │               │         │          │         │ (+0.40); energy 0.93 vs target 0.90 (+1.41);   │
-│     │                │               │               │         │          │         │ tempo 132 vs target 170 bpm (+0.05); acoustic  │
-│     │                │               │               │         │          │         │ texture (0.05 acousticness) (+0.04)            │
-├─────┼────────────────┼───────────────┼───────────────┼─────────┼──────────┼─────────┼────────────────────────────────────────────────┤
-│   2 │ Breakline      │ Static Pilot  │ drum and bass │ intense │     0.95 │    2.70 │ shared vibe: hype (+0.40); energy 0.95 vs      │
-│     │                │               │               │         │          │         │ target 0.90 (+1.35); tempo 174 vs target 170   │
-│     │                │               │               │         │          │         │ bpm (+0.90); acoustic texture (0.06            │
-│     │                │               │               │         │          │         │ acousticness) (+0.05)                          │
-├─────┼────────────────┼───────────────┼───────────────┼─────────┼──────────┼─────────┼────────────────────────────────────────────────┤
-│   3 │ Sunrise City   │ Neon Echo     │ pop           │ happy   │     0.82 │    2.65 │ genre match: pop (+2.00); energy 0.82 vs       │
-│     │                │               │               │         │          │         │ target 0.90 (+1.26); acoustic texture (0.18    │
-│     │                │               │               │         │          │         │ acousticness) (+0.14); diversity penalty       │
-│     │                │               │               │         │          │         │ (-0.75)                                        │
-├─────┼────────────────┼───────────────┼───────────────┼─────────┼──────────┼─────────┼────────────────────────────────────────────────┤
-│   4 │ Rooftop Lights │ Indigo Parade │ indie pop     │ happy   │     0.76 │    2.36 │ related genre: indie pop ~ pop (+1.00); energy │
-│     │                │               │               │         │          │         │ 0.76 vs target 0.90 (+1.08); acoustic texture  │
-│     │                │               │               │         │          │         │ (0.35 acousticness) (+0.28)                    │
-├─────┼────────────────┼───────────────┼───────────────┼─────────┼──────────┼─────────┼────────────────────────────────────────────────┤
-│   5 │ Iron Lungs     │ Blackvault    │ metal         │ intense │     0.98 │    2.23 │ energy 0.98 vs target 0.90 (+1.26); tempo 168  │
-│     │                │               │               │         │          │         │ vs target 170 bpm (+0.95); acoustic texture    │
-│     │                │               │               │         │          │         │ (0.03 acousticness) (+0.02)                    │
-╰─────┴────────────────┴───────────────┴───────────────┴─────────┴──────────┴─────────┴────────────────────────────────────────────────╯
-```
+### How I collaborated with AI
 
-```
-=== Adversarial — a brand new user who has told us nothing ===
-Profile: no preferences given
-Mode: balanced | diversity penalty: on
+I built this with Claude in an agentic coding session, and the division of labour was sharper
+than I expected. It was fast and genuinely good at **inventory and scaffolding**: drafting the
+14-note corpus, writing a dependency-free BM25 index, producing the vocabulary tables, and
+generating the test suite — 283 tests is more than I would have written by hand, and the
+coverage of the repair branches is better for it.
 
-╭─────┬─────────────────────┬──────────────┬───────────────┬───────────┬──────────┬─────────┬──────────────────────────────────────────╮
-│   # │ Title               │ Artist       │ Genre         │ Mood      │   Energy │   Score │ Why                                      │
-├─────┼─────────────────────┼──────────────┼───────────────┼───────────┼──────────┼─────────┼──────────────────────────────────────────┤
-│   1 │ Basement Warehouse  │ Kari Vex     │ house         │ energetic │     0.88 │    0.00 │ nothing in this song matches the profile │
-├─────┼─────────────────────┼──────────────┼───────────────┼───────────┼──────────┼─────────┼──────────────────────────────────────────┤
-│   2 │ Bedroom Tape        │ june//static │ bedroom pop   │ moody     │     0.48 │    0.00 │ nothing in this song matches the profile │
-├─────┼─────────────────────┼──────────────┼───────────────┼───────────┼──────────┼─────────┼──────────────────────────────────────────┤
-│   3 │ Breakline           │ Static Pilot │ drum and bass │ intense   │     0.95 │    0.00 │ nothing in this song matches the profile │
-├─────┼─────────────────────┼──────────────┼───────────────┼───────────┼──────────┼─────────┼──────────────────────────────────────────┤
-│   4 │ Coffee Shop Stories │ Slow Stereo  │ jazz          │ relaxed   │     0.37 │    0.00 │ nothing in this song matches the profile │
-├─────┼─────────────────────┼──────────────┼───────────────┼───────────┼──────────┼─────────┼──────────────────────────────────────────┤
-│   5 │ Concrete Verses     │ Dex Marrow   │ hip hop       │ moody     │     0.68 │    0.00 │ nothing in this song matches the profile │
-╰─────┴─────────────────────┴──────────────┴───────────────┴───────────┴──────────┴─────────┴──────────────────────────────────────────╯
-```
+It was most useful as a **harness for my own judgement** in one specific way: it ran the system
+after each change and showed me the output. Every defect found in this project was found that
+way, not by reading code. The code was individually correct each time.
 
-```
-=== Adversarial — loves a genre the catalog does not have (polka) ===
-Profile: genre=polka, mood=happy, energy=0.5, likes_acoustic=False
-Mode: balanced | diversity penalty: on
+Where I had to push back was on **what the system should do when it doesn't know**. The
+defaults AI produces are confident defaults. Left alone, the system returned five songs and a
+tidy explanation for "play me something good" exactly as it did for a precise request, and
+nothing in the code was wrong — that was the design, and the design was dishonest.
 
-╭─────┬────────────────┬────────────────┬───────────┬────────┬──────────┬─────────┬─────────────────────────────────────────────╮
-│   # │ Title          │ Artist         │ Genre     │ Mood   │   Energy │   Score │ Why                                         │
-├─────┼────────────────┼────────────────┼───────────┼────────┼──────────┼─────────┼─────────────────────────────────────────────┤
-│   1 │ Morning Praise │ The Upper Room │ gospel    │ happy  │     0.71 │    2.33 │ mood match: happy (+1.00); energy 0.71 vs   │
-│     │                │                │           │        │          │         │ target 0.50 (+0.87); produced texture (0.42 │
-│     │                │                │           │        │          │         │ acousticness) (+0.46)                       │
-├─────┼────────────────┼────────────────┼───────────┼────────┼──────────┼─────────┼─────────────────────────────────────────────┤
-│   2 │ Lagos Two Step │ Ayo Komolafe   │ afrobeats │ happy  │     0.78 │    2.27 │ mood match: happy (+1.00); energy 0.78 vs   │
-│     │                │                │           │        │          │         │ target 0.50 (+0.66); produced texture (0.24 │
-│     │                │                │           │        │          │         │ acousticness) (+0.61)                       │
-├─────┼────────────────┼────────────────┼───────────┼────────┼──────────┼─────────┼─────────────────────────────────────────────┤
-│   3 │ Rooftop Lights │ Indigo Parade  │ indie pop │ happy  │     0.76 │    2.24 │ mood match: happy (+1.00); energy 0.76 vs   │
-│     │                │                │           │        │          │         │ target 0.50 (+0.72); produced texture (0.35 │
-│     │                │                │           │        │          │         │ acousticness) (+0.52)                       │
-├─────┼────────────────┼────────────────┼───────────┼────────┼──────────┼─────────┼─────────────────────────────────────────────┤
-│   4 │ Sunrise City   │ Neon Echo      │ pop       │ happy  │     0.82 │    2.20 │ mood match: happy (+1.00); energy 0.82 vs   │
-│     │                │                │           │        │          │         │ target 0.50 (+0.54); produced texture (0.18 │
-│     │                │                │           │        │          │         │ acousticness) (+0.66)                       │
-├─────┼────────────────┼────────────────┼───────────┼────────┼──────────┼─────────┼─────────────────────────────────────────────┤
-│   5 │ Verano Perdido │ Luz Caliente   │ reggaeton │ happy  │     0.85 │    2.16 │ mood match: happy (+1.00); energy 0.85 vs   │
-│     │                │                │           │        │          │         │ target 0.50 (+0.45); produced texture (0.11 │
-│     │                │                │           │        │          │         │ acousticness) (+0.71)                       │
-╰─────┴────────────────┴────────────────┴───────────┴────────┴──────────┴─────────┴─────────────────────────────────────────────╯
-```
+**A suggestion I accepted.** Early on I was offered three ways to handle the model dependency:
+require an API key, avoid models entirely, or run Claude with a deterministic offline
+fallback. I took the third. I had been leaning toward the key-required version because it is
+less code and the "real" integration looks better in a portfolio, and the argument that
+changed my mind was reproducibility: a repo that cannot run without a secret cannot be checked
+by a grader, cannot run in CI, and cannot support the reproducibility experiment that turned
+out to be one of the project's strongest results. Writing a *real* fallback rather than a stub
+cost noticeably more work and is the reason the ablation, the determinism test and the CI
+pipeline all exist.
 
-### Comparing the profiles, pair by pair
+**A suggestion I rejected.** When the confidence calibration came back weak — 0.05 separation
+between passing and failing runs — the obvious move was available and tempting: reweight the
+four components until the number looked better, or quietly report only the thin-versus-specified
+comparison, which is a genuinely good 0.34. I rejected both. Tuning weights against the 29
+cases I had written would have been fitting the metric to the test set and would have produced
+a confidence score that looked calibrated and measured nothing new. So EVALUATION.md reports
+the 0.05 as a named weakness with a structural explanation (two of the four components collapse
+together when retrieval is weak) and says what fixing it would actually require — held-out
+human judgements to regress against, which this project does not have.
 
-- **`happy_pop` vs `chill_lofi`** — barely a song in common, which is the headline result: the
-  two profiles sit at opposite ends of the energy scale (0.80 vs 0.38) and the catalog sorts
-  itself accordingly. Pop gets `Sunrise City` (0.82 energy, produced, sunny); lofi gets
-  `Library Rain` (0.35, acoustic, rainy). The `likes_acoustic` flip is doing visible work too:
-  the same acousticness column that earns `Gym Hero` +0.76 for the pop user is worth almost
-  nothing to them if they'd said they liked acoustic. In plain terms: these two users are
-  asking for different *rooms*, and the system puts them in different rooms.
-- **`happy_pop` vs `intense_rock`** — both want high energy (0.80 vs 0.92), and this is where
-  the overlap shows: **`Gym Hero` appears in both top 5s.** It is pop (so the pop user's +2.00
-  genre match applies), its mood is `intense` (so the rock user's +1.00 mood match applies),
-  and at 0.93 energy it is near both targets. This is the "why does Gym Hero follow me
-  everywhere" effect, and the answer is unglamorous: a song that scores *somewhat* on many
-  terms beats a song that scores *perfectly* on one, because the rule is addition. For a
-  non-programmer: the scorecard gives out points for being roughly right about lots of things,
-  and `Gym Hero` is roughly right about almost everything — loud, upbeat, polished, popular —
-  so it keeps collecting consolation points no matter who is asking.
-- **`intense_rock` vs `sad_banger`** — both high energy, and both end up in the same loud
-  corner of the catalog (`Gym Hero`, `Breakline`, `Iron Lungs`), even though one asked for
-  aggression and the other for melancholy. The mood term (1.00) simply is not strong enough to
-  overcome energy (1.47) plus genre (2.00). This is the clearest evidence that my weights make
-  *intensity* the real organising axis of the system, whatever the mood column says.
-- **`unknown_genre` vs `happy_pop`** — the polka user gets a top 5 made entirely of `happy`
-  songs with mid-range energy, scoring 2.16–2.33 instead of 3.12–5.90. The system behaves
-  correctly (it quietly drops a term it cannot score) but the *scores are not comparable
-  across profiles* — a 2.33 here means "the best of a bad situation", and nothing in the output
-  says so. A production system would need a confidence floor below which it says "we don't
-  know you well enough yet" instead of ranking anyway.
-- **`chill_lofi` vs `instrumental_study`** — nearly the same request (lofi, low energy,
-  acoustic) with two extra constraints: no vocals, and keep it under about three minutes. The
-  lists overlap but reorder: `Library Rain` drops from 1st to 2nd and `Focus Flow` takes the
-  top spot, because it is the only song that is lofi *and* `focused` *and* instrumental *and*
-  142 seconds long. `Dust Road Home` — English, and the only song in the lofi profile's top 5
-  with vocals — is the one result that falls out entirely. The honest
-  caveat is visible in the explanations: the length term contributes +0.47 to the winner but
-  only +0.01 to `Coffee Shop Stories` at 268 seconds, so beyond two minutes off-target it is
-  effectively off, and the two new terms are worth at most 1.10 of a ~7.00 total. They refine;
-  they never overrule genre.
-- **`empty` vs everything else** — all zeros, alphabetical order. The only profile whose output
-  is meaningless, and the only one whose output *looks* exactly as authoritative as the others.
+**A suggestion I revised rather than took whole.** The first off-domain guard refused anything
+without a music word in it. Clean, one function, and it rejected "my girlfriend dumped me" —
+the single request that best demonstrates why the notes corpus exists. The revision splits the
+decision in two and defers it until after retrieval, so refusal requires both signals to be
+absent. It is more code and a fuzzier boundary, and it is right.
 
-### What surprised me
+### What I would not claim
 
-1. **Re-weighting barely moved rank 1.** Doubling energy and quartering genre
-   (`--mode energy_focused`) left `Sunrise City` on top. A song that is best on every axis is
-   immune to re-weighting; the experiment only reshuffled ranks 3–5. I had assumed weights were
-   the main lever, and for the top of the list they mostly aren't — the data's shape is.
-2. **The cold-start output is dishonest rather than empty.** I expected a blank list or an
-   error. Getting a confident-looking alphabetical top 5 with score `0.00` printed next to it
-   was a much better lesson than a crash would have been.
-3. **Most of the bias came from arithmetic, not from any field I chose.** Nothing scores
-   language or region, yet broad-English-compound genres get an advantage and mid-range energy
-   users get better coverage, both purely as side effects of numbers picked for other reasons.
+That the playlists are good. Eight of twelve survived my own review, and my review is not
+independent — the same process that produced the playlists produced the assessment, and the
+human verdict column in `docs/human_eval.md` is deliberately still empty because nobody has
+actually listened. The automated suite cannot close that gap: in the one case human judgement
+called an outright failure, every automated check passed.
 
----
+### Limitations, stated plainly
 
-## 8. Future Work
+1. 22 fictional songs. Several constraints are unsatisfiable in principle.
+2. The notes corpus is unsourced and is doing most of the work.
+3. Confidence predicts under-specification, not incorrectness.
+4. Mood conflict is still unpenalised — the failure Module 3 predicted and 2.0 did not fix.
+5. A hard duration target can outrank song quality (visible in the per-song confidence).
+6. Retrieval is English-centred, unstemmed, and degrades silently on unfamiliar phrasing.
+7. The live Claude path is unverified against the real API.
+8. No user model, no history, no learning. Every request starts from zero.
 
-1. **Penalise conflicts instead of only rewarding matches.** Build a small table of opposing
-   tags (`melancholy` ↔ `hype`, `sleepy` ↔ `aggressive`) and subtract when a song hits one side
-   while the user asked for the other. That alone would have kept `Gym Hero` away from the
-   `sad_banger` profile.
-2. **Normalise and report confidence.** Divide by the maximum score the profile could possibly
-   have earned, so scores are comparable between users, and refuse to rank below a floor —
-   showing "we need more from you" instead of alphabetical noise for the cold-start user.
-3. **Learn from behaviour.** Take likes and skips, nudge `target_energy` and the tag weights
-   toward what the user actually plays, and add an explicit exploration slot (one of the five
-   results chosen for distance from the profile rather than closeness) so the bubble has a leak
-   in it by design.
-4. **Use the unused columns.** `valence` and `danceability` are sitting in the CSV; treating
-   mood as a point in (valence, energy, danceability) space instead of a string would make
-   genre labels much less load-bearing.
+## 8. Future work
 
----
+In the order I would actually do it:
 
-## 9. Personal Reflection
-
-**Biggest learning moment.** Writing the energy term the obvious way first — adding
-`song["energy"]` to the score — and watching the loudest song in the catalog win every profile,
-including the ones asking for calm. The code was correct; my definition of "good" was wrong.
-Rewriting it as a distance (`1 − gap/tolerance`) fixed it in a line. I now believe the hard
-part of a recommender is not the ranking machinery but deciding, precisely, what counts as a
-good answer — and that you cannot see your own mistake there by re-reading the code, only by
-looking at the output and asking whether it is embarrassing.
-
-**Where AI helped, and where I had to check it.** It was genuinely useful for breadth: naming
-the collaborative-vs-content distinction properly, generating 12 plausible catalog rows across
-genres I don't listen to, and suggesting the Strategy-pattern idea that became the
-`ScoringMode` registry. It was also confidently wrong in ways I had to catch. It proposed
-scoring energy as a plain sum (the bug above) and, separately, as `1 - abs(gap)` with no
-tolerance, which makes the term so flat it never changes a ranking. The clearest catch was in
-the length term: the generated code computed the closeness `fit` correctly and then awarded
-`weights.duration` instead of `weights.duration * fit`, so **every** song got the full +0.50
-no matter how long it was. The code ran, the tests I had at the time passed, and the printed
-explanation read `length 352s vs target 150s (+0.50)` — a line that is self-evidently wrong
-only if you actually read the output. I found it by reading the output. There is now a test
-(`test_duration_term_dies_off_outside_the_tolerance`) that pins all three cases. It wanted to drop the
-diversity penalty into `score_song`, where it cannot work — a single song has no idea what else
-is in the list, so that logic has to live in the ranking step. And its first pass at the "bias"
-section listed generic textbook harms rather than the two biases actually present in my file
-(the genre-spelling advantage and the energy cliff), which I only found by reading my own
-output table. The pattern: good at inventory and vocabulary, unreliable about whether a
-specific number does what I want in *this* system.
-
-**What surprised me about simple algorithms.** They don't feel simple from the outside.
-Twenty-two rows, nine addition rules and a sort produce output that reads like taste — the lofi
-list in particular is a playlist I would actually use, including the three songs on it that
-aren't lofi. That is the uncomfortable part. If nine lines of arithmetic can pass for
-understanding my taste, then the confidence I feel about a real recommender "getting me" is not
-evidence of much, and neither is the explanation printed next to it: every reason `Gym Hero`
-gave the melancholy user was true, and the recommendation was still bad.
-
-**What I would try next.** The conflict-penalty table from section 8, first, because it fixes
-the one result I am least willing to defend. Then the explicit exploration slot — deliberately
-reserving one of the five results for a song *far* from the profile, to see whether a filter
-bubble you build a hole into on purpose still closes itself.
+1. **The conflict-penalty table**, carried over unfinished from Module 3's model card and now
+   with a concrete failing case to measure against (`docs/human_eval.md`, case 5). It is the
+   one result in this project I am least willing to defend.
+2. **A score floor in the critic**, so a duration target cannot ship a 1.28-scoring track
+   without at least flagging the tail as padding rather than recommendation.
+3. **Get the human verdict column filled in** by someone who did not build this, then use it
+   as held-out data to test whether confidence predicts anything about quality. That is the
+   only honest route to fixing weakness 3.
+4. **Stem the retrieval index and source the notes**, in that order — the first is an
+   afternoon, the second is the real debt.
+5. **Run the live path and the tool loop over the full case set** and publish the comparison
+   table EVALUATION.md currently leaves blank.
