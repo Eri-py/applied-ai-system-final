@@ -1,2 +1,3 @@
 pytest
 tabulate
+anthropic>=2.0

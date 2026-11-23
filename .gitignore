@@ -13,3 +13,7 @@ venv/
 
 # Pytest cache
 .pytest_cache/
+
+# Run logs are generated at runtime. One sample run is committed under
+# assets/ as reproducible evidence; the rest are local noise.
+logs/
