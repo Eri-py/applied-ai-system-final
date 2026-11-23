@@ -165,6 +165,23 @@ def test_planner_narrates_without_inventing_a_song(planner, songs):
     assert songs[1]["title"] not in text
 
 
+def test_narration_names_the_best_match_not_the_opening_track(planner, songs):
+    """Regression: after an arc re-order the first track is often the weakest match, and
+    the summary used to call it the song that "leads"."""
+    weak_opener = (songs[16], 1.40, "energy 0.52 vs target 0.22 (+0.40)")
+    best = (songs[5], 7.47, "mood match: chill (+2.50)")
+    text, _ = planner.narrate("wind down", {"arc": "descend"}, [weak_opener, best], 0.8)
+
+    assert songs[5]["title"] in text
+    assert "strongest match" in text
+    assert "opens with" in text and songs[16]["title"] in text
+
+
+def test_narration_does_not_mention_ordering_when_the_best_match_is_first(planner, songs):
+    text, _ = planner.narrate("gym", {}, [(songs[2], 5.77, "mood match"), (songs[4], 4.0, "x")], 0.8)
+    assert "opens with" not in text
+
+
 def test_planner_narration_flags_low_confidence(planner, songs):
     picks = [(songs[0], 1.0, "weak")]
     text, _ = planner.narrate("anything", {}, picks, 0.2)

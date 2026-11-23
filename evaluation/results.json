@@ -1,7 +1,7 @@
 {
   "generated_by": "python -m evaluation.run_eval --write",
   "backend": "offline (deterministic planner; evaluation)",
-  "elapsed_seconds": 0.46,
+  "elapsed_seconds": 0.5,
   "summary": {
     "cases": 29,
     "passed": 29,

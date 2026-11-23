@@ -458,7 +458,12 @@ class OfflineBackend:
         if not picks:
             return ("No song in the catalog scored above zero for this request.", Plan(profile=profile))
 
-        top_song, top_score, top_reasons = picks[0]
+        # The best match, not `picks[0]`. Once an energy arc has re-ordered the list, the
+        # first track is whatever the arc needed to open with -- in a wind-down list that is
+        # the *loudest* song and often the weakest match, so calling it the one that "leads"
+        # described the playlist backwards.
+        top_song, top_score, top_reasons = max(picks, key=lambda row: row[1])
+        opener = picks[0][0]
         lead_reason = top_reasons.split(";")[0].strip() if top_reasons else "the closest overall fit"
         spread = f"{len(picks)} song{'s' if len(picks) != 1 else ''}"
         genres = sorted({str(song.get("genre", "")) for song, _, _ in picks if song.get("genre")})
@@ -470,10 +475,17 @@ class OfflineBackend:
                 "unspecified, so these are defaults rather than deductions."
             )
 
+        order_note = ""
+        if int(opener["id"]) != int(top_song["id"]):
+            order_note = (
+                f" The list opens with '{opener['title']}' instead, to shape the energy arc "
+                f"the request asked for."
+            )
+
         return (
             f"{spread} covering {', '.join(genres)}. "
-            f"'{top_song['title']}' by {top_song['artist']} leads on {lead_reason}, "
-            f"scoring {top_score:.2f}.{hedge}",
+            f"The strongest match is '{top_song['title']}' by {top_song['artist']}, "
+            f"on {lead_reason}, scoring {top_score:.2f}.{order_note}{hedge}",
             Plan(profile=profile, backend=self.name),
         )
 
