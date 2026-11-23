@@ -149,7 +149,7 @@ python -m evaluation.run_eval
 
 ### 6. Close — 30 seconds
 
-> "Seven defects in this project, and every one was found by running it and reading the output
+> "Eight defects in this project, and every one was found by running it and reading the output
 > — not one by reading the code. Each component was correct; the bugs were all in the seams
 > between them. That's the thing I'm taking forward."
 

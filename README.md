@@ -24,11 +24,11 @@ $ python -m src.app "my girlfriend dumped me"
   0.77  [###############.....]  HIGH
 ```
 
-That request contains no musical word at all — no genre, no mood, not even "song". The system
-answers it because of a retrieval layer over a corpus of written listening notes, one of which
-says that people in distress reliably choose sad music and that substituting cheerful songs
-makes the output worse while appearing kind. The system reads that note, derives a low-energy
-acoustic profile from it, and never offers a metal track.
+That request contains no musical word at all: no genre, no mood, not even "song". What
+answers it is a retrieval layer over a corpus of written listening notes, one of which says
+that people in distress reliably choose sad music, and that substituting cheerful songs makes
+the output worse while appearing kind. Reading that note is what gives the system a low-energy
+acoustic profile to work from, and why it never offers a metal track.
 
 <!-- DEMO VIDEO -->
 <!-- Recorded a walkthrough? Replace the italic paragraph below with a bold markdown link:
@@ -97,7 +97,7 @@ assert on them.
 **2 — Plan** (`src/retrieval.py` + `src/llm.py`). A dependency-free BM25 index retrieves the
 most relevant listening notes. Each note carries two things: **prose**, handed to Claude as
 grounding context, and a **`hints:` block** of structured defaults that seeds the profile
-directly. That second form is what makes retrieval load-bearing rather than decorative — the
+directly. That second form is what makes retrieval load-bearing rather than decorative: the
 catalog knows a song's tempo, but nothing in it says which tempo a rainy Sunday wants. The
 planner then proposes a profile, which is clamped into the ranges `score_song` assumes.
 
@@ -106,7 +106,7 @@ profile has no scorable preference at all, a separate cold-start path returns de
 coverage instead.
 
 **4 — Check and repair** (`src/agent.py`). A critic tests what no single song score can
-express — a repeated artist, one genre flooding the list, a song outside the energy window,
+express: a repeated artist, one genre flooding the list, a song outside the energy window,
 total running time against a requested duration, and whether the energy arc matches the shape
 the request implies. Each failure has one narrow registered repair. Bounded at five attempts,
 so an unsatisfiable constraint ends with the failure reported rather than looping.
@@ -151,7 +151,7 @@ designs can be compared rather than argued about. Run it with `--tool-loop`.
 
 ## Setup
 
-Needs Python 3.10+. **No API key is required** — the system runs fully offline on a
+Needs Python 3.10+. **No API key is required**: the system runs fully offline on a
 deterministic planner, and all 285 tests and all published evaluation numbers reproduce that
 way.
 
@@ -320,7 +320,7 @@ $ python -m src.app "half an hour of lo-fi to wind down"
 ```
 
 The full JSONL log for this exact run is committed at
-[`assets/sample-run-winddown.jsonl`](assets/sample-run-winddown.jsonl) — 15 events, each
+[`assets/sample-run-winddown.jsonl`](assets/sample-run-winddown.jsonl), 15 events, each
 timed. Note also what the system does *not* hide: tracks 1 and 2 scored 1.40 and 1.28 against
 a best match of 7.47. The duration constraint forced them in, and their per-song confidence
 (0.15, 0.14) says so.
@@ -391,7 +391,7 @@ outside it degrades to whatever retrieval alone can supply.
 **Retrieval carries structured hints, not just prose.** The textbook RAG shape is "retrieve
 passages, stuff them in a prompt". That shape cannot work offline and makes retrieval's
 contribution unmeasurable. Giving each note a `hints:` block means retrieval changes the
-*profile*, which changes the scoring, which changes the output — a causal path I can ablate
+*profile*, which changes the scoring, which changes the output: a causal path I can ablate
 and measure. The ablation below is only possible because of this choice. *Trade-off:* the
 hints are hand-authored, so the corpus is a maintained artefact, not a scraped one.
 
@@ -399,7 +399,7 @@ hints are hand-authored, so the corpus is a maintained artefact, not a scraped o
 structurally cannot see "three songs by the same artist" or "this list ends louder than it
 starts". Those are properties of the set. Keeping them in a separate critic means I can add a
 constraint without touching the Module 3 weights, and it is where most real playlist failures
-turned out to live. *Trade-off:* two places now encode what "good" means, and they can drift —
+turned out to live. *Trade-off:* two places now encode what "good" means, and they can drift, so
 the critic's energy window is deliberately pinned to the scorer's `energy_tolerance` to limit
 that.
 
@@ -428,7 +428,7 @@ reproducibility experiment meaningful.
 
 **285 unit tests pass; 29 of 29 labelled evaluation cases pass; reproducibility is 29/29
 across three runs each. With the retrieval layer switched off, the pass rate falls to 55% and
-mean confidence from 0.65 to 0.21 — 13 cases fail that otherwise pass. Confidence separates
+mean confidence from 0.65 to 0.21, and 13 cases fail that otherwise pass. Confidence separates
 vague requests from specified ones by 0.34, but separates passing from failing runs by only
 0.05, which is a real weakness.** Full report: [EVALUATION.md](EVALUATION.md).
 
@@ -454,8 +454,8 @@ layer is doing work.
 ### What didn't
 
 **The 29/29 is a regression guard, not evidence of quality,** and EVALUATION.md says so. The
-cases were written alongside the fixes they describe — I found six real defects by running the
-system by hand and added the case that would have caught each one. A suite that passes
+cases were written alongside the fixes they describe: I found eight real defects by running
+the system by hand and added the case that would have caught each one. A suite that passes
 everything it was written against proves only that it still passes.
 
 The honest failures are these:
@@ -493,6 +493,7 @@ test:
 | An unset `-k` read as an explicit song count, silently disabling duration sizing | Check the value, not the key |
 | `mode: discovery` alone was misread as having no scorable signal, discarding the novelty ranking the user asked for | Scoring modes with a novelty weight now count as signal |
 | The summary named the opening track as the best match — backwards after an arc re-order | Name the highest-scoring song, and say why the list opens elsewhere |
+| Run ids used only 4 hex characters, so 50 in one second collided ~1.9% of the time, and a collision made one run overwrite another's log | Widened to 8 characters, and logs now open exclusively rather than truncating |
 
 ---
 
@@ -508,7 +509,7 @@ found none of those. Running the thing and reading the output found all of them.
 The second thing is that **the honest answer is a feature, and it has to be designed in.** The
 cold-start path, the published confidence and the relaxation notes all exist because the
 default behaviour of a system like this is to produce a confident-looking answer regardless of
-whether it has grounds for one — and that failure is invisible to the user, which makes it the
+whether it has grounds for one, and that failure is invisible to the user, which makes it the
 worst kind. Deciding what the system should do when it doesn't know turned out to be a larger
 share of the work than making it work when it does.
 
@@ -557,5 +558,5 @@ applied-ai-system-final/
 
 ---
 
-Built for CodePath AI110, Module 5 — *Show What You Know: Applied AI System*.
+Built for CodePath AI110, Module 5: *Show What You Know: Applied AI System*.
 Extends [Module 3: VibeFinder 1.0](https://github.com/Eri-py/ai110-module3show-musicrecommendersimulation-starter).

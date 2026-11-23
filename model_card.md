@@ -140,7 +140,7 @@ Full report: [EVALUATION.md](EVALUATION.md). Human judgement:
 | Human review of 12 playlists | 8 pass, 3 weak, 1 fail |
 
 **Read the 29/29 sceptically.** The cases were written alongside the fixes they describe: I
-found seven real defects by running the system and reading its output, and added the case that
+found eight real defects by running the system and reading its output, and added the case that
 would have caught each one as I fixed it. That makes the suite a regression guard, not a
 quality measure. The ablation and the human review are the parts that tested the system against
 something it was not tuned for, and both found real problems.

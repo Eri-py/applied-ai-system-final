@@ -235,14 +235,22 @@ required — and the render command is in the README for anyone who wants the im
 
 ---
 
-### The pattern, across seven defects
+### The pattern, across eight defects
 
-Every single defect in this project was found by **running the system and reading its output**,
-and not one was found by reading the code. In each case the component was individually correct
-and the seam between two components was wrong: retrieval handing the planner a number it had no
-right to be confident about; the planner handing the critic a profile that made every score
-zero; the arc re-orderer handing the narrator a list whose first element no longer meant what
-the narrator assumed.
+Every defect in this project turned up by **running the system**, seven of them from reading
+its output and the eighth from a CI job going red. Not one came from reading the code. In each
+case the component was individually correct and the seam between two components was wrong:
+retrieval handing the planner a number it had no right to be confident about; the planner
+handing the critic a profile that made every score zero; the arc re-orderer handing the
+narrator a list whose first element no longer meant what the narrator assumed.
+
+The eighth is worth a line of its own, because it is the one I would have sworn was fine. A
+test asserting that 50 run ids are unique failed on one Python version and passed on the other
+two, which looks like flakiness and was really a design fault: the id was a one-second
+timestamp plus four hex characters, so two runs starting in the same second collided about 1.9%
+of the time, and a collision meant the second run opening the first one's log file and erasing
+it. The flaky test was right and my id was too narrow. Logs now open exclusively instead of
+truncating, so even a collision cannot destroy evidence.
 
 The AI was consistently strong at **structure and prose** — the BM25 index, the critic/repair
 split, the notes themselves — and consistently optimistic about **how real inputs behave**:

@@ -136,7 +136,7 @@ BEATS: List[Beat] = [
 ]
 
 CLOSING = (
-    "Seven defects in this project, and every one was found by running it and reading the\n"
+    "Eight defects in this project, and every one was found by running it and reading the\n"
     "  output -- not one by reading the code. Each component was correct; the bugs were all in\n"
     "  the seams between them. That is the thing I am taking forward."
 )
