@@ -23,7 +23,10 @@ OUT=assets/sample-output.md
 # wall-clock timings. Everything else is expected to be byte-identical, so re-running this
 # script should produce no git diff.
 mask() {
-  sed -E 's/run: [0-9]{8}T[0-9]{6}-[0-9a-f]{4}/run: <run-id>/; s#log=.*#log=logs/run-<run-id>.jsonl#'
+  # The random suffix is matched with `+` rather than a fixed width on purpose: it was 4
+  # characters and is now 8 (see RUN_ID_RANDOM_CHARS in src/obs.py), and a hard-coded width
+  # silently left the last 4 characters unmasked, which made this file differ on every run.
+  sed -E 's/run: [0-9]{8}T[0-9]{6}-[0-9a-f]+/run: <run-id>/; s#log=.*#log=logs/run-<run-id>.jsonl#'
 }
 
 mask_timing() {

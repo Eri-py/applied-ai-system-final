@@ -24,7 +24,7 @@ analysis at the bottom is the place to check.
 | **1. Does something useful with AI** | `src/app.py` — plain-English request → explained playlist | |
 | **1. At least one advanced feature: RAG** | `src/retrieval.py` + [`data/notes/`](../data/notes) | BM25 over 14 notes; hints seed the profile, so retrieval changes behaviour rather than printing alongside it |
 | **1. At least one advanced feature: agentic workflow** | `src/agent.py` (plan→act→check→repair), `src/tool_loop.py` (model-driven) | Two implementations, deliberately comparable |
-| **1. At least one advanced feature: reliability/testing** | `evaluation/`, `tests/`, `.github/workflows/ci.yml` | 283 tests, 29 labelled cases, 3 experiments |
+| **1. At least one advanced feature: reliability/testing** | `evaluation/`, `tests/`, `.github/workflows/ci.yml` | 285 tests, 29 labelled cases, 3 experiments |
 | **1. Feature integrated into main logic, not a standalone script** | Measured, not asserted: the retrieval ablation drops the pass rate 100% → 55% | [EVALUATION.md](../EVALUATION.md) experiment 2 |
 | **1. Runs correctly and reproducibly** | Verified from a fresh clone; CI on Python 3.10/3.11/3.12; no API key needed | Reproducibility experiment: 29/29 byte-identical over 3 runs |
 | **1. Logging or guardrails** | `src/obs.py` (JSONL per run), `src/guardrails.py` | Injection refusal, two-stage domain check, profile clamping, output sanitising |
@@ -53,7 +53,7 @@ analysis at the bottom is the place to check.
 |---|---|
 | Code pushed to the correct GitHub repository | yes |
 | Repo is public | yes |
-| Functional code | `src/`, 3,750 lines |
+| Functional code | `src/`, ~3,800 lines |
 | Comprehensive `README.md` | yes |
 | `model_card.md` for reflections | yes |
 | Architecture diagram as Mermaid source in `diagrams/` | yes — two, plus a rendered page |

@@ -19,7 +19,7 @@ answerable from the data, it is exactly the judgement the automated suite cannot
 is where this system's real failures turned out to live.
 
 That is a weaker form of evaluation than listening, and it is labelled as such throughout. It
-is not weak enough to be worthless: it found two things the 283 unit tests and 29 labelled
+is not weak enough to be worthless: it found two things the 285 unit tests and 29 labelled
 cases all missed.
 
 ### Who wrote these verdicts

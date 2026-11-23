@@ -5,7 +5,7 @@ import json
 import pytest
 
 from src.app import build_parser, main, render, result_to_dict
-from src.obs import RunLogger, new_run_id
+from src.obs import RUN_ID_RANDOM_CHARS, RunLogger, new_run_id
 
 
 # --- run logging -------------------------------------------------------------------------
@@ -63,8 +63,40 @@ def test_logger_serialises_values_it_does_not_understand(tmp_path):
     assert "Opaque" in path.read_text(encoding="utf-8")
 
 
-def test_run_ids_are_unique():
+def test_run_id_has_the_documented_shape():
+    """Deterministic: a timestamp plus the full random suffix, which is the part that
+    separates two runs started in the same second."""
+    run_id = new_run_id()
+    stamp, _, suffix = run_id.partition("-")
+    assert len(stamp) == 15 and stamp[8] == "T"
+    assert len(suffix) == RUN_ID_RANDOM_CHARS
+    assert all(char in "0123456789abcdef" for char in suffix)
+
+
+def test_run_ids_do_not_collide_in_practice():
+    """Probabilistic, and deliberately sized so the probability is negligible.
+
+    This test previously drew 50 ids against a 4-character (16-bit) suffix, where the
+    birthday bound gives a ~1.9% collision chance -- and it duly failed one CI job. The fix
+    was the suffix width, not the sample size: at 32 bits the same 50 draws collide about 3
+    times in 10 million. Drawing *more* ids would make the test flakier, not stronger.
+    """
     assert len({new_run_id() for _ in range(50)}) == 50
+
+
+def test_a_duplicate_run_id_does_not_overwrite_an_existing_log(tmp_path):
+    """The consequence that made the collision worth fixing: a lost log."""
+    first = RunLogger(run_id="same-id", log_dir=tmp_path)
+    first.event("from_the_first_run", value=1)
+    first_path = first.close()
+
+    second = RunLogger(run_id="same-id", log_dir=tmp_path)
+    second.event("from_the_second_run", value=2)
+    second_path = second.close()
+
+    assert first_path != second_path, "the second run must not reuse the first run's file"
+    assert "from_the_first_run" in first_path.read_text(encoding="utf-8")
+    assert "from_the_second_run" in second_path.read_text(encoding="utf-8")
 
 
 def test_trace_writes_to_stderr_not_stdout(tmp_path, capsys):

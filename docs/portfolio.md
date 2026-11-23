@@ -10,7 +10,7 @@ demonstrate — every number here is in [EVALUATION.md](../EVALUATION.md).
 
 > **VibeFinder 2.0** — a retrieval-augmented, self-checking playlist system in Python that
 > explains every recommendation, repairs its own mistakes, and publishes a measured confidence
-> score. 283 tests; removing the retrieval layer drops its pass rate from 100% to 55%.
+> score. 285 tests; removing the retrieval layer drops its pass rate from 100% to 55%.
 
 ## Short paragraph (portfolio card / CV bullet)
 
@@ -22,7 +22,7 @@ demonstrate — every number here is in [EVALUATION.md](../EVALUATION.md).
 > Claude for the two language-facing steps with a deterministic fallback, so the whole system
 > — including CI and all published metrics — runs reproducibly with no API key. Guardrails
 > refuse prompt-injection and off-domain input; a four-component confidence score makes the
-> system's uncertainty visible rather than hiding it. 283 tests, 29 labelled evaluation cases,
+> system's uncertainty visible rather than hiding it. 285 tests, 29 labelled evaluation cases,
 > and three experiments, one of which found and reported a genuine weakness in the confidence
 > model rather than tuning it away.
 
@@ -58,7 +58,7 @@ demonstrate — every number here is in [EVALUATION.md](../EVALUATION.md).
 | Retrieval / RAG | BM25 index written from scratch; hints that change system behaviour, with a measured ablation |
 | Agentic design | Plan → act → check → repair loop, bounded, with one registered repair per failure mode |
 | LLM integration | Anthropic SDK, structured JSON output, refusal handling, graceful degradation |
-| Reliability engineering | 283 tests, labelled eval suite, determinism test, CI with a report-staleness gate |
+| Reliability engineering | 285 tests, labelled eval suite, determinism test, CI with a report-staleness gate |
 | Guardrails / safety | Injection refusal, two-stage domain check, profile clamping, output sanitising |
 | Evaluation literacy | Reported a negative calibration result; stated that a 100% pass rate is a regression guard |
 | Technical writing | README, model card, human-evaluation protocol, Mermaid architecture diagrams |
@@ -135,7 +135,7 @@ python -m pytest -q
 python -m evaluation.run_eval
 ```
 
-> "283 tests. 29 labelled cases. Then three experiments, and the middle one is the point: turn
+> "285 tests. 29 labelled cases. Then three experiments, and the middle one is the point: turn
 > the retrieval layer off and the pass rate falls from 100% to 55%, with 13 cases breaking.
 > That's what makes 'this uses RAG' a finding rather than a claim."
 >

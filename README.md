@@ -59,7 +59,7 @@ project had nowhere to put.
 | **Quality control** | Trust the score | A critic checks properties no score can express, and the agent repairs what fails |
 | **Honesty** | A ranked list | A published confidence with four measured components, and a cold-start path that refuses to fake precision |
 | **Safety** | None needed | Input screening, injection refusal, profile clamping, output sanitising |
-| **Evidence** | 16 unit tests | 283 tests, 29 labelled evaluation cases, three experiments, JSONL run logs |
+| **Evidence** | 16 unit tests | 285 tests, 29 labelled evaluation cases, three experiments, JSONL run logs |
 
 The Module 3 scoring engine is **unchanged and still central** — `src/recommender.py` is the
 same file, and every playlist above is produced by its `score_song` and `recommend_songs`.
@@ -136,14 +136,14 @@ designs can be compared rather than argued about. Run it with `--tool-loop`.
 | `data/notes/*.md` | The retrieval corpus: 14 notes, ~3,150 words. |
 | `data/songs.csv` | **Module 3, unchanged.** 22 songs, 15 columns. |
 | `evaluation/` | 29 labelled cases and the harness that runs them. |
-| `tests/` | 283 tests. |
+| `tests/` | 285 tests. |
 
 ---
 
 ## Setup
 
 Needs Python 3.10+. **No API key is required** — the system runs fully offline on a
-deterministic planner, and all 283 tests and all published evaluation numbers reproduce that
+deterministic planner, and all 285 tests and all published evaluation numbers reproduce that
 way.
 
 ```bash
@@ -160,7 +160,7 @@ pip install -r requirements.txt
 Verify the install:
 
 ```bash
-python -m pytest -q                # expect: 283 passed
+python -m pytest -q                # expect: 285 passed
 python -m src.app "something for the gym"
 ```
 
@@ -415,7 +415,7 @@ reproducibility experiment meaningful.
 
 ## Testing summary
 
-**283 unit tests pass; 29 of 29 labelled evaluation cases pass; reproducibility is 29/29
+**285 unit tests pass; 29 of 29 labelled evaluation cases pass; reproducibility is 29/29
 across three runs each. With the retrieval layer switched off, the pass rate falls to 55% and
 mean confidence from 0.65 to 0.21 — 13 cases fail that otherwise pass. Confidence separates
 vague requests from specified ones by 0.34, but separates passing from failing runs by only
@@ -423,7 +423,7 @@ vague requests from specified ones by 0.34, but separates passing from failing r
 
 | Measurement | Result |
 |---|---|
-| Unit tests (`pytest`) | 283 passed |
+| Unit tests (`pytest`) | 285 passed |
 | Labelled cases (`evaluation/run_eval.py`) | 29/29 passed, mean confidence 0.65 |
 | Reproducibility (3 runs per case) | 29/29 byte-identical |
 | **Ablation: retrieval on** | **100% pass, mean confidence 0.65** |
@@ -523,7 +523,7 @@ applied-ai-system-final/
 │   └── notes/                 the retrieval corpus (14 notes)
 ├── src/                       the system (see Files above)
 ├── evaluation/                cases.py, run_eval.py, results.json
-├── tests/                     283 tests
+├── tests/                     285 tests
 ├── diagrams/
 │   ├── architecture.mmd       Mermaid source — the whole system
 │   ├── agent_loop.mmd         Mermaid source — one real run

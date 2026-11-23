@@ -129,7 +129,7 @@ Full report: [EVALUATION.md](EVALUATION.md). Human judgement:
 
 | Measurement | Result |
 |---|---|
-| Unit tests | 283 passed |
+| Unit tests | 285 passed |
 | Labelled cases | 29/29 passed, mean confidence 0.65 |
 | Reproducibility (3 runs each) | 29/29 byte-identical |
 | Retrieval ablation | 100% → **55%** pass rate; confidence 0.65 → 0.21; 13 cases break |
@@ -157,7 +157,7 @@ the kind of claim this card exists to prevent.
 I built this with Claude in an agentic coding session, and the division of labour was sharper
 than I expected. It was fast and genuinely good at **inventory and scaffolding**: drafting the
 14-note corpus, writing a dependency-free BM25 index, producing the vocabulary tables, and
-generating the test suite — 283 tests is more than I would have written by hand, and the
+generating the test suite — 285 tests is more than I would have written by hand, and the
 coverage of the repair branches is better for it.
 
 It was most useful as a **harness for my own judgement** in one specific way: it ran the system
@@ -206,7 +206,7 @@ top and a filled-in protocol and empty table for an independent second rater.
 There is also a harder limit worth naming: **the 22 songs are fictional, so there is no audio
 and nobody can evaluate these playlists by listening to them.** What the review does is read
 each playlist's metadata against the request and judge whether the selection is defensible.
-That is a weaker instrument than listening, and it still caught two things the 283 unit tests
+That is a weaker instrument than listening, and it still caught two things the 285 unit tests
 and 29 labelled cases all missed — including the one case where every automated check passes
 and two of five tracks are plainly the wrong feeling.
 

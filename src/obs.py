@@ -30,9 +30,45 @@ from typing import Any, Dict, List, Optional
 DEFAULT_LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
 
 
+# Length of the random suffix on a run id, in hex characters. This was 4 and is now 8, for a
+# concrete reason: the timestamp has one-second resolution, so everything that protects two
+# runs started in the same second is this suffix. At 4 characters that is 16 bits, and the
+# birthday bound puts the collision chance for 50 runs in one second at roughly 1.9% -- which
+# duly happened, failing `test_run_ids_are_unique` on one CI job. A collision is not cosmetic:
+# two runs sharing an id write to the same log file, and the second one erases the first.
+# 8 characters is 32 bits, which takes the same 50-run figure to about 3 in 10 million.
+RUN_ID_RANDOM_CHARS = 8
+
+
 def new_run_id() -> str:
-    """A short, sortable run id: timestamp plus four random characters."""
-    return f"{time.strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:4]}"
+    """A short, sortable run id: a second-resolution timestamp plus random hex."""
+    return f"{time.strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:RUN_ID_RANDOM_CHARS]}"
+
+
+def _open_new_log(directory: Path, run_id: str):
+    """Opens a log file that is guaranteed not to be an existing one.
+
+    Exclusive creation (`"x"`) rather than truncation (`"w"`), so that if two runs ever do
+    share an id -- a wider suffix makes it unlikely, not impossible -- the second one takes a
+    new filename instead of erasing the first one's log. Evidence that silently overwrites
+    other evidence is worse than no evidence.
+    """
+    base = directory / f"run-{run_id}.jsonl"
+    try:
+        return base, base.open("x", encoding="utf-8")
+    except FileExistsError:
+        pass
+
+    for attempt in range(1, 100):
+        candidate = directory / f"run-{run_id}-{attempt}.jsonl"
+        try:
+            return candidate, candidate.open("x", encoding="utf-8")
+        except FileExistsError:
+            continue
+
+    # 100 collisions on one id is not a thing that happens; if it somehow does, fall back to
+    # truncation rather than losing the run's logging entirely.
+    return base, base.open("w", encoding="utf-8")
 
 
 @dataclass
@@ -58,8 +94,7 @@ class RunLogger:
         directory = Path(self.log_dir) if self.log_dir else DEFAULT_LOG_DIR
         try:
             directory.mkdir(parents=True, exist_ok=True)
-            self.path = directory / f"run-{self.run_id}.jsonl"
-            self._handle = self.path.open("w", encoding="utf-8")
+            self.path, self._handle = _open_new_log(directory, self.run_id)
         except OSError as error:
             # A read-only or full disk must not take the playlist down with it.
             self.enabled = False
