@@ -33,7 +33,7 @@ Each playlist is judged on four questions, and a verdict of `pass` requires all 
 
 ## Results
 
-Generated against commit `8a4b382` on the deterministic offline planner, so each command
+Generated on the deterministic offline planner (`VIBEFINDER_OFFLINE=1`), so each command
 reproduces the exact playlist reviewed. Energy is shown as `e0.00`.
 
 | # | Command | Playlist produced | Conf | Model review (not human) | Human verdict |
